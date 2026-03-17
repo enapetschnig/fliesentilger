@@ -75,9 +75,9 @@ export default function Auth() {
       return;
     }
 
-    toast({ 
+    toast({
       title: "Registrierung erfolgreich!",
-      description: "Sie können jetzt die App nutzen.",
+      description: "Ein Administrator wird Ihr Konto freischalten.",
     });
     
     navigate("/");

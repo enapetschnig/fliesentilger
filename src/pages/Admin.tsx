@@ -90,6 +90,9 @@ export default function Admin() {
   // Sick notes states
   const [sickNotes, setSickNotes] = useState<SickNote[]>([]);
 
+  // Pending activation role selection
+  const [pendingRoles, setPendingRoles] = useState<Record<string, "administrator" | "mitarbeiter">>({});
+
   // Delete user dialog states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -227,23 +230,38 @@ export default function Admin() {
   };
 
   const handleActivateUser = async (userId: string, activate: boolean) => {
-    const { data: updatedProfile, error } = await supabase
-      .from("profiles")
-      .update({ is_active: activate })
-      .eq("id", userId)
-      .select("id, is_active")
-      .single();
-
-    if (error || !updatedProfile) {
-      toast({
-        variant: "destructive",
-        title: "Fehler",
-        description: error?.message || "Aktivierung fehlgeschlagen (keine Berechtigung oder Benutzer nicht gefunden).",
+    if (activate) {
+      const role = pendingRoles[userId] || "mitarbeiter";
+      const { data, error } = await supabase.rpc("activate_user", {
+        _user_id: userId,
+        _role: role,
       });
-      return;
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Fehler",
+          description: error.message || "Aktivierung fehlgeschlagen.",
+        });
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_active: false })
+        .eq("id", userId);
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Fehler",
+          description: error.message,
+        });
+        return;
+      }
     }
 
-    // Optimistic UI update (avoids full-page loading spinner + losing scroll position)
+    // Optimistic UI update
     setProfiles((prev) =>
       prev.map((p) => (p.id === userId ? { ...p, is_active: activate } : p))
     );
@@ -251,7 +269,7 @@ export default function Admin() {
     toast({
       title: activate ? "Benutzer aktiviert" : "Benutzer deaktiviert",
       description: activate
-        ? "Der Benutzer kann sich jetzt anmelden."
+        ? `Der Benutzer wurde als ${pendingRoles[userId] || "Mitarbeiter"} freigeschaltet.`
         : "Der Benutzer kann sich nicht mehr anmelden.",
     });
 
@@ -620,9 +638,23 @@ export default function Admin() {
                           </p>
                         </div>
                       </div>
-                      <Button onClick={() => handleActivateUser(profile.id, true)}>
-                        Aktivieren
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={pendingRoles[profile.id] || "mitarbeiter"}
+                          onValueChange={(val) => setPendingRoles(prev => ({...prev, [profile.id]: val as "administrator" | "mitarbeiter"}))}
+                        >
+                          <SelectTrigger className="w-[160px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+                            <SelectItem value="administrator">Administrator</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button onClick={() => handleActivateUser(profile.id, true)}>
+                          Freischalten
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

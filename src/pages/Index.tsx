@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, FolderKanban, Users, BarChart3, LogOut, FileText, Camera, ArrowRight, Info, User as UserIcon, Zap, Receipt, BookUser, Package } from "lucide-react";
+import { Clock, FolderKanban, Users, BarChart3, LogOut, FileText, Camera, ArrowRight, Info, User as UserIcon, Zap, Receipt, BookUser, Package, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import {
@@ -48,6 +48,7 @@ export default function Index() {
   const [recentEntries, setRecentEntries] = useState<RecentTimeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isActivated, setIsActivated] = useState<boolean | null>(null);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const { handleRestartInstallGuide } = useOnboarding();
 
   const fetchProjects = async () => {
@@ -99,8 +100,8 @@ export default function Index() {
 
     const [{ data: profileData }, { data: roleData }] = await Promise.all([profileReq, roleReq]);
 
-    // Falls Profil noch nicht existiert (Trigger hat noch nicht ausgeführt), trotzdem weitermachen
-    setIsActivated(true);
+    // Check activation status
+    setIsActivated(profileData?.is_active === true);
     
     if (profileData) {
       setUserName(`${profileData.vorname} ${profileData.nachname}`.trim());
@@ -114,6 +115,15 @@ export default function Index() {
 
     const role = roleData?.role ?? null;
     setUserRole(role);
+
+    // Fetch pending users count for admin notification
+    if (role === "administrator") {
+      const { count } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", false);
+      setPendingUsersCount(count || 0);
+    }
 
     await Promise.all([
       fetchProjects(),
@@ -224,6 +234,32 @@ export default function Index() {
     return null;
   }
 
+  if (isActivated === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <img src="/fliesentilger-logo.svg" alt="Fliesentechnik Tilger" className="h-16 mx-auto mb-4" />
+            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
+              <Clock className="h-8 w-8 text-amber-600" />
+            </div>
+            <CardTitle className="text-xl">Registrierung erfolgreich</CardTitle>
+            <CardDescription className="text-base mt-2">
+              Dein Konto wurde erstellt und wartet auf Freischaltung durch einen Administrator.
+              Du wirst benachrichtigt, sobald dein Zugang aktiviert wurde.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Abmelden
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const isAdmin = userRole === "administrator";
 
   return (
@@ -271,6 +307,31 @@ export default function Index() {
           </div>
         </div>
       </header>
+
+      {/* Pending Users Notification for Admins */}
+      {isAdmin && pendingUsersCount > 0 && (
+        <div
+          className="bg-amber-50 border-b border-amber-200 cursor-pointer hover:bg-amber-100 transition-colors"
+          onClick={() => navigate("/admin")}
+        >
+          <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                <Bell className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-900 text-sm sm:text-base">
+                  {pendingUsersCount === 1
+                    ? "1 neuer Benutzer wartet auf Freischaltung"
+                    : `${pendingUsersCount} neue Benutzer warten auf Freischaltung`}
+                </p>
+                <p className="text-xs text-amber-700">Tippe hier, um zum Admin-Bereich zu gelangen</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-amber-600 shrink-0" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
