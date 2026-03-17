@@ -53,7 +53,15 @@ interface TimeBlock {
   pauseEnd: string;
   selectedEmployees: string[];
   manualHours: string;
+  disturbanceId: string;
 }
+
+type Disturbance = {
+  id: string;
+  datum: string;
+  kunde_name: string;
+  status: string;
+};
 
 const createDefaultBlock = (startTime = "", endTime = "", pauseStart = "", pauseEnd = ""): TimeBlock => ({
   id: crypto.randomUUID(),
@@ -66,6 +74,7 @@ const createDefaultBlock = (startTime = "", endTime = "", pauseStart = "", pause
   pauseEnd,
   selectedEmployees: [],
   manualHours: "",
+  disturbanceId: "",
 });
 
 const TimeTracking = () => {
@@ -99,6 +108,7 @@ const TimeTracking = () => {
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([createDefaultBlock()]);
+  const [disturbances, setDisturbances] = useState<Disturbance[]>([]);
   const entryMode = "zeitraum" as const;
 
   // Fetch existing entries for selected date
@@ -171,6 +181,7 @@ const TimeTracking = () => {
 
   useEffect(() => {
     fetchProjects();
+    fetchDisturbances();
 
     const channel = supabase
       .channel('projects-changes')
@@ -244,6 +255,16 @@ const TimeTracking = () => {
 
     if (data) setProjects(data);
     setLoading(false);
+  };
+
+  const fetchDisturbances = async () => {
+    const { data } = await supabase
+      .from("disturbances")
+      .select("id, datum, kunde_name, status")
+      .in("status", ["offen", "gesendet", "abgeschlossen"])
+      .order("datum", { ascending: false })
+      .limit(50);
+    if (data) setDisturbances(data);
   };
 
   // Update a specific block
@@ -597,6 +618,7 @@ const TimeTracking = () => {
         user_id: user.id,
         datum: selectedDate,
         project_id: block.locationType === "werkstatt" ? null : (block.projectId || null),
+        disturbance_id: block.disturbanceId || null,
         taetigkeit: block.taetigkeit,
         stunden: blockHours,
         start_time: block.startTime,
@@ -862,11 +884,40 @@ const TimeTracking = () => {
                         {/* Activity - optional */}
                         <div className="space-y-2">
                           <Label>Tätigkeit <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                          <Input 
-                            value={block.taetigkeit} 
-                            onChange={(e) => updateBlock(block.id, { taetigkeit: e.target.value })} 
-                            placeholder="Optional - z.B. Montage, Aufmaß..."
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              value={block.taetigkeit}
+                              onChange={(e) => updateBlock(block.id, { taetigkeit: e.target.value, disturbanceId: "" })}
+                              placeholder="z.B. Montage, Aufmaß..."
+                              className="flex-1"
+                            />
+                            <Button
+                              type="button"
+                              variant={block.taetigkeit === "Regiearbeit" ? "default" : "outline"}
+                              size="sm"
+                              className="shrink-0 text-xs"
+                              onClick={() => updateBlock(block.id, { taetigkeit: "Regiearbeit" })}
+                            >
+                              Regie
+                            </Button>
+                          </div>
+                          {block.taetigkeit === "Regiearbeit" && disturbances.length > 0 && (
+                            <Select
+                              value={block.disturbanceId}
+                              onValueChange={(v) => updateBlock(block.id, { disturbanceId: v })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Regiebericht auswählen (optional)" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {disturbances.map(d => (
+                                  <SelectItem key={d.id} value={d.id}>
+                                    {new Date(d.datum).toLocaleDateString("de-AT")} - {d.kunde_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
 
                         {/* Start/End/Pause time inputs */}

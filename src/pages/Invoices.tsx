@@ -36,16 +36,18 @@ const statusColors: Record<string, string> = {
   storniert: "bg-red-100 text-red-800",
   abgelehnt: "bg-red-100 text-red-800",
   angenommen: "bg-green-100 text-green-800",
+  verrechnet: "bg-purple-100 text-purple-800",
 };
 
 const statusLabels: Record<string, string> = {
   entwurf: "Entwurf",
-  gesendet: "Gesendet",
+  gesendet: "Offen",
   bezahlt: "Bezahlt",
   teilbezahlt: "Teilbezahlt",
   storniert: "Storniert",
   abgelehnt: "Abgelehnt",
   angenommen: "Angenommen",
+  verrechnet: "Verrechnet",
 };
 
 export default function Invoices() {

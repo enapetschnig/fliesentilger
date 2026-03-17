@@ -10,7 +10,10 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Save, Download, Copy, ArrowRightLeft, AlertTriangle, Package, Ban, FileDown, Search, UserPlus, TrendingUp } from "lucide-react";
+import { Plus, Trash2, Save, Download, Copy, ArrowRightLeft, AlertTriangle, Package, Ban, FileDown, Search, UserPlus, TrendingUp, Eye, Import, FileText } from "lucide-react";
+import { InvoicePdfPreview } from "@/components/InvoicePdfPreview";
+import { ImportMaterialsDialog } from "@/components/ImportMaterialsDialog";
+import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { format } from "date-fns";
@@ -138,6 +141,10 @@ export default function InvoiceDetail() {
   const [storedPdfs, setStoredPdfs] = useState<StoredPdf[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [importMaterialsOpen, setImportMaterialsOpen] = useState(false);
+  const [importDisturbanceOpen, setImportDisturbanceOpen] = useState(false);
+  const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
   const defaultTyp = searchParams.get("typ") || "rechnung";
 
   const [form, setForm] = useState<InvoiceData>({
@@ -734,13 +741,19 @@ export default function InvoiceDetail() {
                     {form.mahnstufe > 0 && (
                       <Badge variant="destructive">Mahnung {form.mahnstufe}</Badge>
                     )}
-                    <Select value={form.status} onValueChange={(v) => updateField("status", v)}>
+                    <Select value={form.status} onValueChange={(v) => {
+                      updateField("status", v);
+                      // When offer is accepted, prompt to create project
+                      if (v === "angenommen" && form.typ === "angebot" && !form.project_id) {
+                        setCreateProjectDialogOpen(true);
+                      }
+                    }}>
                       <SelectTrigger className="w-[160px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="entwurf">Entwurf</SelectItem>
-                        <SelectItem value="gesendet">Gesendet</SelectItem>
+                        <SelectItem value="gesendet">{form.typ === "angebot" ? "Offen" : "Gesendet"}</SelectItem>
                         {form.typ === "rechnung" ? (
                           <>
                             <SelectItem value="bezahlt">Bezahlt</SelectItem>
@@ -751,6 +764,7 @@ export default function InvoiceDetail() {
                           <>
                             <SelectItem value="angenommen">Angenommen</SelectItem>
                             <SelectItem value="abgelehnt">Abgelehnt</SelectItem>
+                            <SelectItem value="verrechnet">Verrechnet</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -773,9 +787,21 @@ export default function InvoiceDetail() {
                       <Copy className="w-4 h-4" />
                       Duplizieren
                     </Button>
+                    <Button onClick={() => setPreviewOpen(true)} variant="outline" size="sm" className="gap-1.5">
+                      <Eye className="w-4 h-4" />
+                      Vorschau
+                    </Button>
                     <Button onClick={handleDownloadPdf} variant="outline" size="sm" className="gap-1.5">
                       <Download className="w-4 h-4" />
                       PDF
+                    </Button>
+                    <Button onClick={() => setImportMaterialsOpen(true)} variant="outline" size="sm" className="gap-1.5">
+                      <Import className="w-4 h-4" />
+                      Material
+                    </Button>
+                    <Button onClick={() => setImportDisturbanceOpen(true)} variant="outline" size="sm" className="gap-1.5">
+                      <FileText className="w-4 h-4" />
+                      Regie
                     </Button>
                     {canCancel && (
                       <AlertDialog>
@@ -1235,6 +1261,107 @@ export default function InvoiceDetail() {
             )}
           </DialogContent>
         </Dialog>
+        {/* PDF Preview Dialog */}
+        {invoiceId && (
+          <InvoicePdfPreview
+            open={previewOpen}
+            onClose={() => setPreviewOpen(false)}
+            invoiceId={invoiceId}
+          />
+        )}
+
+        {/* Import Materials Dialog */}
+        <ImportMaterialsDialog
+          open={importMaterialsOpen}
+          onClose={() => setImportMaterialsOpen(false)}
+          projectId={form.project_id}
+          onImport={(importedItems) => {
+            const newItems = importedItems.map((item, idx) => ({
+              position: items.length + idx + 1,
+              beschreibung: item.beschreibung,
+              menge: item.menge,
+              einheit: item.einheit,
+              einzelpreis: item.einzelpreis,
+              gesamtpreis: item.menge * item.einzelpreis,
+            }));
+            setItems(prev => [...prev, ...newItems]);
+            setImportMaterialsOpen(false);
+            toast({ title: "Materialien importiert", description: `${newItems.length} Positionen hinzugefügt` });
+          }}
+        />
+
+        {/* Import Disturbance Dialog */}
+        <ImportDisturbanceDialog
+          open={importDisturbanceOpen}
+          onClose={() => setImportDisturbanceOpen(false)}
+          onImport={(importedItems, kundeData) => {
+            const newItems = importedItems.map((item, idx) => ({
+              position: items.length + idx + 1,
+              beschreibung: item.beschreibung,
+              menge: item.menge,
+              einheit: item.einheit,
+              einzelpreis: item.einzelpreis,
+              gesamtpreis: item.menge * item.einzelpreis,
+            }));
+            setItems(prev => [...prev, ...newItems]);
+            // Fill customer data if empty
+            if (kundeData && !form.kunde_name) {
+              setForm(prev => ({
+                ...prev,
+                kunde_name: kundeData.kunde_name || prev.kunde_name,
+                kunde_adresse: kundeData.kunde_adresse || prev.kunde_adresse,
+                kunde_telefon: kundeData.kunde_telefon || prev.kunde_telefon,
+                kunde_email: kundeData.kunde_email || prev.kunde_email,
+              }));
+            }
+            setImportDisturbanceOpen(false);
+            toast({ title: "Regiebericht importiert", description: `${newItems.length} Positionen hinzugefügt` });
+          }}
+        />
+
+        {/* Create Project Dialog (when offer accepted) */}
+        <AlertDialog open={createProjectDialogOpen} onOpenChange={setCreateProjectDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Projekt automatisch erstellen?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Das Angebot wurde angenommen. Soll automatisch ein Projekt mit den Kundendaten erstellt werden?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Nein, danke</AlertDialogCancel>
+              <AlertDialogAction onClick={async () => {
+                try {
+                  const projektName = `${form.kunde_name} - ${form.nummer}`;
+                  const { data: newProject, error } = await supabase
+                    .from("projects")
+                    .insert({
+                      name: projektName,
+                      adresse: [form.kunde_adresse, form.kunde_plz, form.kunde_ort].filter(Boolean).join(", "),
+                      plz: form.kunde_plz || null,
+                      status: "aktiv",
+                    })
+                    .select("id")
+                    .single();
+                  if (error) throw error;
+                  updateField("project_id", newProject.id);
+                  // Refresh projects list
+                  const { data: projectsData } = await supabase
+                    .from("projects")
+                    .select("id, name")
+                    .eq("status", "aktiv")
+                    .order("name");
+                  if (projectsData) setProjects(projectsData);
+                  toast({ title: "Projekt erstellt", description: `"${projektName}" wurde angelegt und verknüpft.` });
+                } catch (err: any) {
+                  toast({ variant: "destructive", title: "Fehler", description: err.message });
+                }
+              }}>
+                Ja, Projekt erstellen
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
