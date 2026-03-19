@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Package, ArrowDown, ArrowUp, Minus, Filter } from "lucide-react";
+import { Trash2, Package, ArrowDown, ArrowUp, Minus, Filter, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,11 +41,12 @@ export default function MaterialWithdraw() {
   const [newMaterial, setNewMaterial] = useState("");
   const [newMenge, setNewMenge] = useState("");
   const [newEinheit, setNewEinheit] = useState("Stk.");
-  const [newEinzelpreis, setNewEinzelpreis] = useState("");
   const [newTyp, setNewTyp] = useState<string>("entnahme");
   const [newNotizen, setNewNotizen] = useState("");
   const [newProjectId, setNewProjectId] = useState<string>("none");
   const [submitting, setSubmitting] = useState(false);
+  // Track which entry we're returning (for pre-filled form)
+  const [returningEntryId, setReturningEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     init();
@@ -101,6 +102,30 @@ export default function MaterialWithdraw() {
     }
   };
 
+  const openNewForm = (typ: string) => {
+    setNewTyp(typ);
+    setNewMaterial("");
+    setNewMenge("");
+    setNewEinheit("Stk.");
+    setNewNotizen("");
+    setNewProjectId("none");
+    setReturningEntryId(null);
+    setShowForm(true);
+  };
+
+  const openReturnForm = (entry: MaterialEntry) => {
+    setNewTyp("rueckgabe");
+    setNewMaterial(entry.material);
+    setNewMenge(entry.menge || "");
+    setNewEinheit(entry.einheit || "Stk.");
+    setNewProjectId(entry.project_id || "none");
+    setNewNotizen("");
+    setReturningEntryId(entry.id);
+    setShowForm(true);
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUserId || !newMaterial.trim()) return;
@@ -111,7 +136,7 @@ export default function MaterialWithdraw() {
       material: newMaterial.trim(),
       menge: newMenge.trim() || null,
       einheit: newEinheit,
-      einzelpreis: parseFloat(newEinzelpreis) || 0,
+      einzelpreis: 0,
       typ: newTyp,
       notizen: newNotizen.trim() || null,
       datum: new Date().toISOString().split("T")[0],
@@ -119,12 +144,12 @@ export default function MaterialWithdraw() {
     if (error) {
       toast({ variant: "destructive", title: "Fehler", description: "Konnte nicht gespeichert werden" });
     } else {
-      toast({ title: "Material gebucht" });
+      toast({ title: newTyp === "rueckgabe" ? "Material zurückgebucht" : "Material entnommen" });
       setNewMaterial("");
       setNewMenge("");
-      setNewEinzelpreis("");
       setNewNotizen("");
       setNewProjectId("none");
+      setReturningEntryId(null);
       setShowForm(false);
       fetchEntries();
     }
@@ -148,8 +173,8 @@ export default function MaterialWithdraw() {
   };
 
   const typLabel = (typ: string | null) => {
-    if (typ === "entnahme") return "Entnahme";
-    if (typ === "rueckgabe") return "Rückgabe";
+    if (typ === "entnahme") return "Entnommen";
+    if (typ === "rueckgabe") return "Zurückgebracht";
     return "Verbrauch";
   };
 
@@ -175,20 +200,18 @@ export default function MaterialWithdraw() {
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-4">
         {/* Neuer Eintrag / Buttons */}
-        <div className="flex gap-2 flex-wrap">
-          {!showForm && (
-            <>
-              <Button onClick={() => { setNewTyp("entnahme"); setShowForm(true); }} className="gap-2 bg-orange-600 hover:bg-orange-700">
-                <ArrowUp className="h-4 w-4" />
-                Material entnehmen
-              </Button>
-              <Button onClick={() => { setNewTyp("rueckgabe"); setShowForm(true); }} variant="outline" className="gap-2">
-                <ArrowDown className="h-4 w-4" />
-                Material zurückbringen
-              </Button>
-            </>
-          )}
-        </div>
+        {!showForm && (
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => openNewForm("entnahme")} className="gap-2 bg-orange-600 hover:bg-orange-700">
+              <ArrowUp className="h-4 w-4" />
+              Material entnehmen
+            </Button>
+            <Button onClick={() => openNewForm("rueckgabe")} variant="outline" className="gap-2">
+              <ArrowDown className="h-4 w-4" />
+              Material zurückbringen
+            </Button>
+          </div>
+        )}
 
         {/* Formular */}
         {showForm && (
@@ -201,6 +224,9 @@ export default function MaterialWithdraw() {
                   <><ArrowDown className="h-5 w-5 text-green-500" /> Material zurückbringen</>
                 )}
               </CardTitle>
+              {returningEntryId && (
+                <CardDescription>Vorausgefüllt von der Entnahme — Menge anpassen falls nötig</CardDescription>
+              )}
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-3">
@@ -228,11 +254,7 @@ export default function MaterialWithdraw() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Einzelpreis (€)</label>
-                    <Input value={newEinzelpreis} onChange={(e) => setNewEinzelpreis(e.target.value)} placeholder="0.00" type="number" step="0.01" />
-                  </div>
-                  <div>
+                  <div className="col-span-2">
                     <label className="text-sm font-medium">Projekt (optional)</label>
                     <Select value={newProjectId} onValueChange={setNewProjectId}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -250,10 +272,10 @@ export default function MaterialWithdraw() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={submitting || !newMaterial.trim()} className="bg-orange-600 hover:bg-orange-700">
-                    {submitting ? "Speichert..." : "Buchen"}
+                  <Button type="submit" disabled={submitting || !newMaterial.trim()} className={newTyp === "entnahme" ? "bg-orange-600 hover:bg-orange-700" : "bg-green-600 hover:bg-green-700"}>
+                    {submitting ? "Speichert..." : newTyp === "entnahme" ? "Entnehmen" : "Zurückbuchen"}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Abbrechen</Button>
+                  <Button type="button" variant="outline" onClick={() => { setShowForm(false); setReturningEntryId(null); }}>Abbrechen</Button>
                 </div>
               </form>
             </CardContent>
@@ -298,7 +320,7 @@ export default function MaterialWithdraw() {
             ) : (
               <div className="space-y-2">
                 {filtered.map((entry) => (
-                  <div key={entry.id} className="p-3 rounded-lg border bg-card flex items-center justify-between gap-3">
+                  <div key={entry.id} className="p-3 rounded-lg border bg-card flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {typIcon(entry.typ)}
                       <div className="flex-1 min-w-0">
@@ -310,7 +332,6 @@ export default function MaterialWithdraw() {
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {entry.menge && `${entry.menge} ${entry.einheit || ""}`}
-                          {entry.einzelpreis && entry.einzelpreis > 0 ? ` · € ${entry.einzelpreis.toFixed(2)}` : ""}
                           {entry.profiles ? ` · ${entry.profiles.vorname} ${entry.profiles.nachname}` : ""}
                           {entry.projects ? ` · ${entry.projects.name}` : " · Kein Projekt"}
                           {" · "}
@@ -319,11 +340,19 @@ export default function MaterialWithdraw() {
                         {entry.notizen && <p className="text-xs text-muted-foreground italic mt-0.5">{entry.notizen}</p>}
                       </div>
                     </div>
-                    {canDelete(entry) && (
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(entry.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {entry.typ === "entnahme" && (
+                        <Button variant="outline" size="sm" onClick={() => openReturnForm(entry)} className="gap-1 text-green-700 border-green-300 hover:bg-green-50">
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Zurückgeben</span>
+                        </Button>
+                      )}
+                      {canDelete(entry) && (
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(entry.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
