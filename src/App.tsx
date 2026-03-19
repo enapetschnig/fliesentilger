@@ -30,6 +30,7 @@ import InvoiceDetail from "./pages/InvoiceDetail";
 import InvoiceTemplates from "./pages/InvoiceTemplates";
 import Customers from "./pages/Customers";
 import OfferPackages from "./pages/OfferPackages";
+import MaterialWithdraw from "./pages/MaterialWithdraw";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +77,8 @@ function AppContent() {
         <Route path="/invoices/packages" element={<OfferPackages />} />
         <Route path="/invoices/new" element={<InvoiceDetail />} />
         <Route path="/invoices/:id" element={<InvoiceDetail />} />
+        <Route path="/materials" element={<InvoiceTemplates />} />
+        <Route path="/material-withdraw" element={<MaterialWithdraw />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

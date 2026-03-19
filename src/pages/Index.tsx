@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, FolderKanban, Users, BarChart3, LogOut, FileText, Camera, ArrowRight, Info, User as UserIcon, Zap, Receipt, BookUser, Package, Bell } from "lucide-react";
+import { Clock, FolderKanban, Users, BarChart3, LogOut, FileText, ArrowRight, Info, User as UserIcon, Zap, Receipt, BookUser, Package, Bell, BoxSelect } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import {
@@ -349,8 +349,8 @@ export default function Index() {
         {/* Main Actions Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           {/* Zeiterfassung - Für alle */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
             onClick={() => navigate("/time-tracking")}
           >
             <CardHeader className="space-y-2 pb-3">
@@ -368,8 +368,8 @@ export default function Index() {
           </Card>
 
           {/* Projekte - Für alle */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
             onClick={() => navigate("/projects")}
           >
             <CardHeader className="space-y-2 pb-3">
@@ -386,92 +386,10 @@ export default function Index() {
             </CardContent>
           </Card>
 
-          {/* Meine Stunden - Für alle */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
-            onClick={() => navigate("/my-hours")}
-          >
-            <CardHeader className="space-y-2 pb-3">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle className="text-lg sm:text-xl">Meine Stunden</CardTitle>
-              <CardDescription className="text-sm">
-                {isAdmin ? "Eigene gebuchte Zeiten anzeigen & bearbeiten" : "Übersicht gebuchter Zeiten"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" size="sm" variant="outline">Anzeigen</Button>
-            </CardContent>
-          </Card>
-
-          {/* Regieberichte - Für alle */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
-            onClick={() => navigate("/disturbances")}
-          >
-            <CardHeader className="space-y-2 pb-3">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Zap className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle className="text-lg sm:text-xl">Regiearbeiten</CardTitle>
-              <CardDescription className="text-sm">
-                Service-Einsätze dokumentieren
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" size="sm" variant="outline">Regiearbeiten öffnen</Button>
-            </CardContent>
-          </Card>
-
-
-          {/* Meine Dokumente - Für Mitarbeiter */}
-          {!isAdmin && (
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
-              onClick={() => navigate("/my-documents")}
-            >
-              <CardHeader className="space-y-2 pb-3">
-                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-accent" />
-                </div>
-                <CardTitle className="text-lg sm:text-xl">Meine Dokumente</CardTitle>
-                <CardDescription className="text-sm">
-                  Lohnzettel & Krankmeldungen
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" size="sm" variant="outline">Dokumente öffnen</Button>
-              </CardContent>
-            </Card>
-          )}
-
-
-          {/* Admin: Stundenauswertung */}
+          {/* Admin: Rechnungen & Angebote — direkt nach Projekte */}
           {isAdmin && (
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
-              onClick={() => navigate("/hours-report")}
-            >
-              <CardHeader className="space-y-2 pb-3">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="text-lg sm:text-xl">Stundenauswertung</CardTitle>
-                <CardDescription className="text-sm">
-                  Auswertung der Projektstunden
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" size="sm">Auswerten</Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Admin: Rechnungen & Angebote */}
-          {isAdmin && (
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
               onClick={() => navigate("/invoices")}
             >
               <CardHeader className="space-y-2 pb-3">
@@ -489,31 +407,130 @@ export default function Index() {
             </Card>
           )}
 
-          {/* Admin: Materialien & Vorlagen */}
+          {/* Material entnehmen - Für alle */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
+            onClick={() => navigate("/material-withdraw")}
+          >
+            <CardHeader className="space-y-2 pb-3">
+              <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                <BoxSelect className="h-6 w-6 text-orange-600" />
+              </div>
+              <CardTitle className="text-lg sm:text-xl">Material entnehmen</CardTitle>
+              <CardDescription className="text-sm">
+                Material mitnehmen & zurückbringen
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="bg-orange-600 hover:bg-orange-700 w-full" size="sm">Material buchen</Button>
+            </CardContent>
+          </Card>
+
+          {/* Meine Stunden - Für alle */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
+            onClick={() => navigate("/my-hours")}
+          >
+            <CardHeader className="space-y-2 pb-3">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="text-lg sm:text-xl">Meine Stunden</CardTitle>
+              <CardDescription className="text-sm">
+                {isAdmin ? "Eigene gebuchte Zeiten anzeigen & bearbeiten" : "Übersicht gebuchter Zeiten"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" size="sm" variant="outline">Anzeigen</Button>
+            </CardContent>
+          </Card>
+
+          {/* Regieberichte - Für alle */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
+            onClick={() => navigate("/disturbances")}
+          >
+            <CardHeader className="space-y-2 pb-3">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Zap className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="text-lg sm:text-xl">Regiearbeiten</CardTitle>
+              <CardDescription className="text-sm">
+                Service-Einsätze dokumentieren
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" size="sm" variant="outline">Regiearbeiten öffnen</Button>
+            </CardContent>
+          </Card>
+
+          {/* Meine Dokumente - Für Mitarbeiter */}
+          {!isAdmin && (
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
+              onClick={() => navigate("/my-documents")}
+            >
+              <CardHeader className="space-y-2 pb-3">
+                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-accent" />
+                </div>
+                <CardTitle className="text-lg sm:text-xl">Meine Dokumente</CardTitle>
+                <CardDescription className="text-sm">
+                  Lohnzettel & Krankmeldungen
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" size="sm" variant="outline">Dokumente öffnen</Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Admin: Stundenauswertung */}
           {isAdmin && (
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
-              onClick={() => navigate("/invoices/templates")}
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
+              onClick={() => navigate("/hours-report")}
+            >
+              <CardHeader className="space-y-2 pb-3">
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6 text-primary" />
+                </div>
+                <CardTitle className="text-lg sm:text-xl">Stundenauswertung</CardTitle>
+                <CardDescription className="text-sm">
+                  Auswertung der Projektstunden
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" size="sm">Auswerten</Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Admin: Materialien */}
+          {isAdmin && (
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
+              onClick={() => navigate("/materials")}
             >
               <CardHeader className="space-y-2 pb-3">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Package className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="text-lg sm:text-xl">Materialien & Vorlagen</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">Materialien</CardTitle>
                 <CardDescription className="text-sm">
-                  Positionsvorlagen & Preislisten verwalten
+                  Materialstamm & Preislisten verwalten
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button className="w-full" size="sm" variant="outline">Vorlagen öffnen</Button>
+                <Button className="w-full" size="sm" variant="outline">Materialien öffnen</Button>
               </CardContent>
             </Card>
           )}
 
           {/* Admin: Kunden */}
           {isAdmin && (
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
               onClick={() => navigate("/customers")}
             >
               <CardHeader className="space-y-2 pb-3">
@@ -531,10 +548,10 @@ export default function Index() {
             </Card>
           )}
 
-          {/* Admin: Mitarbeiter */}
+          {/* Admin: Admin-Bereich */}
           {isAdmin && (
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50" 
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
               onClick={() => navigate("/admin")}
             >
               <CardHeader className="space-y-2 pb-3">

@@ -7,11 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { FileText, Receipt, Filter, Package, AlertTriangle, Zap } from "lucide-react";
+import { FileText, Receipt, Filter, AlertTriangle } from "lucide-react";
 import { format, parseISO, isBefore } from "date-fns";
 import { de } from "date-fns/locale";
 import { PageHeader } from "@/components/PageHeader";
-import { QuickOfferDialog } from "@/components/QuickOfferDialog";
 
 interface Invoice {
   id: string;
@@ -26,6 +25,7 @@ interface Invoice {
   faellig_am: string | null;
   mahnstufe: number;
   gueltig_bis: string | null;
+  bezahlt_betrag: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -55,7 +55,6 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true);
   const [filterTyp, setFilterTyp] = useState<string>("alle");
   const [filterStatus, setFilterStatus] = useState<string>("alle");
-  const [quickOfferOpen, setQuickOfferOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -66,13 +65,13 @@ export default function Invoices() {
   const fetchInvoices = async () => {
     const { data, error } = await supabase
       .from("invoices")
-      .select("id, typ, nummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis")
+      .select("id, typ, nummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag")
       .order("datum", { ascending: false });
 
     if (error) {
       toast({ variant: "destructive", title: "Fehler", description: "Rechnungen konnten nicht geladen werden" });
     } else {
-      setInvoices((data || []).map(d => ({ ...d, mahnstufe: (d as any).mahnstufe || 0, gueltig_bis: (d as any).gueltig_bis || null })));
+      setInvoices((data || []).map(d => ({ ...d, mahnstufe: (d as any).mahnstufe || 0, gueltig_bis: (d as any).gueltig_bis || null, bezahlt_betrag: Number((d as any).bezahlt_betrag) || 0 })));
     }
     setLoading(false);
   };
@@ -171,23 +170,11 @@ export default function Invoices() {
                 </Select>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Button onClick={() => setQuickOfferOpen(true)} variant="default" className="gap-2 bg-primary">
-                  <Zap className="w-4 h-4" />
-                  Schnellangebot
-                </Button>
-                <Button onClick={() => navigate("/invoices/packages")} variant="outline" className="gap-2">
-                  <Package className="w-4 h-4" />
-                  Pakete
-                </Button>
-                <Button onClick={() => navigate("/invoices/templates")} variant="outline" className="gap-2">
-                  <Package className="w-4 h-4" />
-                  Vorlagen
-                </Button>
                 <Button onClick={() => navigate("/invoices/new?typ=angebot")} variant="outline" className="gap-2">
                   <FileText className="w-4 h-4" />
                   Neues Angebot
                 </Button>
-                <Button onClick={() => navigate("/invoices/new?typ=rechnung")} variant="outline" className="gap-2">
+                <Button onClick={() => navigate("/invoices/new?typ=rechnung")} variant="default" className="gap-2">
                   <Receipt className="w-4 h-4" />
                   Neue Rechnung
                 </Button>
@@ -215,6 +202,7 @@ export default function Invoices() {
                       <TableHead>Kunde</TableHead>
                       <TableHead>Datum</TableHead>
                       <TableHead className="text-right">Brutto</TableHead>
+                      <TableHead className="text-right">Bezahlt</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -222,6 +210,9 @@ export default function Invoices() {
                     {filtered.map((inv) => {
                       const overdue = isOverdue(inv);
                       const expired = isExpiredOffer(inv);
+                      const brutto = Number(inv.brutto_summe);
+                      const bezahlt = inv.bezahlt_betrag;
+                      const offen = brutto - bezahlt;
                       return (
                         <TableRow
                           key={inv.id}
@@ -236,7 +227,25 @@ export default function Invoices() {
                           </TableCell>
                           <TableCell>{inv.kunde_name}</TableCell>
                           <TableCell>{format(parseISO(inv.datum), "dd.MM.yyyy", { locale: de })}</TableCell>
-                          <TableCell className="text-right font-medium">€ {Number(inv.brutto_summe).toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-medium">€ {brutto.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            {inv.typ === "rechnung" ? (
+                              <div>
+                                {inv.status === "bezahlt" ? (
+                                  <span className="text-green-600 font-medium">€ {brutto.toFixed(2)}</span>
+                                ) : bezahlt > 0 ? (
+                                  <div>
+                                    <span className="text-yellow-600 font-medium">€ {bezahlt.toFixed(2)}</span>
+                                    <div className="text-xs text-muted-foreground">offen: € {offen.toFixed(2)}</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <Badge className={statusColors[inv.status] || ""}>
@@ -270,7 +279,6 @@ export default function Invoices() {
           </CardContent>
         </Card>
       </div>
-      <QuickOfferDialog open={quickOfferOpen} onOpenChange={setQuickOfferOpen} />
     </div>
   );
 }

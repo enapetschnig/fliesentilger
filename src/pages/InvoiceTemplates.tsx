@@ -129,7 +129,7 @@ export default function InvoiceTemplates() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <PageHeader title="Positionsvorlagen" backPath="/invoices" />
+        <PageHeader title="Materialien" backPath="/" />
 
         {/* Search & Filter Bar */}
         <div className="flex flex-wrap gap-3 mb-4 items-center">

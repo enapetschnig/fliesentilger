@@ -797,22 +797,6 @@ export default function InvoiceDetail() {
                       <Copy className="w-4 h-4" />
                       Duplizieren
                     </Button>
-                    <Button onClick={() => setPreviewOpen(true)} variant="outline" size="sm" className="gap-1.5">
-                      <Eye className="w-4 h-4" />
-                      Vorschau
-                    </Button>
-                    <Button onClick={handleDownloadPdf} variant="outline" size="sm" className="gap-1.5">
-                      <Download className="w-4 h-4" />
-                      PDF
-                    </Button>
-                    <Button onClick={() => setImportMaterialsOpen(true)} variant="outline" size="sm" className="gap-1.5">
-                      <Import className="w-4 h-4" />
-                      Material
-                    </Button>
-                    <Button onClick={() => setImportDisturbanceOpen(true)} variant="outline" size="sm" className="gap-1.5">
-                      <FileText className="w-4 h-4" />
-                      Regie
-                    </Button>
                     {canCancel && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -1231,10 +1215,6 @@ export default function InvoiceDetail() {
           {/* Actions */}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => navigate("/invoices")}>Abbrechen</Button>
-            <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2">
-              <Eye className="w-4 h-4" />
-              Vorschau
-            </Button>
             <Button onClick={handleSaveAndPreview} disabled={saving} className="gap-2">
               <Save className="w-4 h-4" />
               {saving ? "Speichert..." : "Speichern & Vorschau"}
