@@ -161,12 +161,6 @@ const DisturbanceDetail = () => {
     
     setDeleting(true);
 
-    // Delete associated time entry first
-    await supabase
-      .from("time_entries")
-      .delete()
-      .eq("disturbance_id", disturbance.id);
-
     // Delete the disturbance (materials will cascade)
     const { error } = await supabase
       .from("disturbances")
@@ -464,7 +458,7 @@ const DisturbanceDetail = () => {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3">
-                Die Arbeitszeit wurde automatisch für alle {workers.length} Mitarbeiter gebucht.
+                {workers.length} Mitarbeiter waren an diesem Einsatz beteiligt.
               </p>
             </CardContent>
           </Card>

@@ -1,27 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
-  <!-- Red accent bar top -->
-  <rect x="0" y="0" width="400" height="4" fill="#CC0000" rx="1"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 140" width="480" height="140">
+  <!-- Background -->
+  <rect x="0" y="0" width="480" height="140" fill="#fff" rx="0"/>
+
+  <!-- Top red accent bar -->
+  <rect x="0" y="0" width="480" height="4" fill="#CC0000"/>
 
   <!-- FLIESENTECHNIK text -->
-  <text x="200" y="30" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="16" fill="#1A1A1A" letter-spacing="3">FLIESENTECHNIK</text>
+  <text x="240" y="32" text-anchor="middle" font-family="Arial Black, Impact, Arial, sans-serif" font-weight="900" font-size="18" fill="#1A1A1A" letter-spacing="6">FLIESENTECHNIK</text>
 
   <!-- TILGER large text -->
-  <text x="10" y="78" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="56" fill="#1A1A1A" letter-spacing="2">TIL</text>
+  <text x="18" y="92" font-family="Arial Black, Impact, Arial, sans-serif" font-weight="900" font-size="68" fill="#1A1A1A" letter-spacing="3">TIL</text>
 
-  <!-- G with GOTTFRIED inside -->
-  <text x="175" y="78" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="56" fill="#1A1A1A">G</text>
-  <!-- GOTTFRIED text inside G -->
-  <text x="192" y="68" font-family="Arial, sans-serif" font-weight="700" font-size="8" fill="#CC0000" letter-spacing="0.5">GOTTFRIED</text>
+  <!-- G character -->
+  <text x="215" y="92" font-family="Arial Black, Impact, Arial, sans-serif" font-weight="900" font-size="68" fill="#1A1A1A">G</text>
 
-  <!-- ER text -->
-  <text x="225" y="78" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="56" fill="#CC0000" letter-spacing="2">ER</text>
+  <!-- GOTTFRIED text inside/over the G -->
+  <text x="235" y="78" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="9" fill="#CC0000" letter-spacing="0.8">GOTTFRIED</text>
 
-  <!-- Red accent bar -->
-  <rect x="0" y="88" width="400" height="3" fill="#CC0000" rx="1"/>
+  <!-- ER in red -->
+  <text x="275" y="92" font-family="Arial Black, Impact, Arial, sans-serif" font-weight="900" font-size="68" fill="#CC0000" letter-spacing="3">ER</text>
+
+  <!-- Red separator bar -->
+  <rect x="0" y="102" width="480" height="3" fill="#CC0000"/>
 
   <!-- NATURSTEINTEPPICH text -->
-  <text x="200" y="110" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="16" fill="#1A1A1A" letter-spacing="3">NATURSTEINTEPPICH</text>
+  <text x="240" y="128" text-anchor="middle" font-family="Arial Black, Impact, Arial, sans-serif" font-weight="900" font-size="18" fill="#1A1A1A" letter-spacing="6">NATURSTEINTEPPICH</text>
 
-  <!-- Bottom red accent -->
-  <rect x="0" y="116" width="400" height="4" fill="#CC0000" rx="1"/>
+  <!-- Bottom red accent bar -->
+  <rect x="0" y="136" width="480" height="4" fill="#CC0000"/>
 </svg>

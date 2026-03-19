@@ -327,14 +327,14 @@ export default function InvoiceDetail() {
   const canDelete = form.typ === "angebot" || form.status === "entwurf";
   const canCancel = form.typ === "rechnung" && form.status !== "entwurf" && form.status !== "storniert";
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
     if (!form.kunde_name.trim()) {
       toast({ variant: "destructive", title: "Fehler", description: "Kundenname ist erforderlich" });
-      return;
+      return false;
     }
     if (items.length === 0 || !items[0].beschreibung.trim()) {
       toast({ variant: "destructive", title: "Fehler", description: "Mindestens eine Position ist erforderlich" });
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -343,7 +343,7 @@ export default function InvoiceDetail() {
     if (!user) {
       toast({ variant: "destructive", title: "Fehler", description: "Nicht angemeldet" });
       setSaving(false);
-      return;
+      return false;
     }
 
     try {
@@ -467,12 +467,22 @@ export default function InvoiceDetail() {
       if (isNew) {
         navigate(`/invoices/${savedId}`, { replace: true });
       }
+
+      setSaving(false);
+      return true;
     } catch (err: any) {
       console.error("Fehler beim Speichern:", err);
       toast({ variant: "destructive", title: "Fehler", description: err.message || "Speichern fehlgeschlagen" });
+      setSaving(false);
+      return false;
     }
+  };
 
-    setSaving(false);
+  const handleSaveAndPreview = async () => {
+    const success = await handleSave();
+    if (success) {
+      setPreviewOpen(true);
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -1221,9 +1231,13 @@ export default function InvoiceDetail() {
           {/* Actions */}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => navigate("/invoices")}>Abbrechen</Button>
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
+            <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2">
+              <Eye className="w-4 h-4" />
+              Vorschau
+            </Button>
+            <Button onClick={handleSaveAndPreview} disabled={saving} className="gap-2">
               <Save className="w-4 h-4" />
-              {saving ? "Speichert..." : "Speichern"}
+              {saving ? "Speichert..." : "Speichern & Vorschau"}
             </Button>
           </div>
         </div>
@@ -1261,14 +1275,46 @@ export default function InvoiceDetail() {
             )}
           </DialogContent>
         </Dialog>
-        {/* PDF Preview Dialog */}
-        {invoiceId && (
-          <InvoicePdfPreview
-            open={previewOpen}
-            onClose={() => setPreviewOpen(false)}
-            invoiceId={invoiceId}
-          />
-        )}
+        {/* PDF Preview Dialog — works both before and after saving */}
+        <InvoicePdfPreview
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          formData={{
+            typ: form.typ,
+            nummer: form.nummer,
+            status: form.status,
+            kunde_name: form.kunde_name,
+            kunde_adresse: form.kunde_adresse,
+            kunde_plz: form.kunde_plz,
+            kunde_ort: form.kunde_ort,
+            kunde_land: form.kunde_land,
+            kunde_email: form.kunde_email,
+            kunde_telefon: form.kunde_telefon,
+            kunde_uid: form.kunde_uid,
+            datum: form.datum,
+            faellig_am: form.faellig_am,
+            leistungsdatum: form.leistungsdatum,
+            gueltig_bis: form.gueltig_bis,
+            zahlungsbedingungen: form.zahlungsbedingungen,
+            notizen: form.notizen,
+            netto_summe: nettoSumme,
+            mwst_satz: form.mwst_satz,
+            mwst_betrag: mwstBetrag,
+            brutto_summe: bruttoSumme,
+            bezahlt_betrag: form.bezahlt_betrag,
+            rabatt_prozent: form.rabatt_prozent,
+            rabatt_betrag: form.rabatt_betrag,
+            mahnstufe: form.mahnstufe,
+          }}
+          items={items.map((item, idx) => ({
+            position: idx + 1,
+            beschreibung: item.beschreibung,
+            menge: item.menge,
+            einheit: item.einheit,
+            einzelpreis: item.einzelpreis,
+            gesamtpreis: item.gesamtpreis,
+          }))}
+        />
 
         {/* Import Materials Dialog */}
         <ImportMaterialsDialog

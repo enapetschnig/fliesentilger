@@ -1,20 +1,40 @@
 import { useState, useEffect, useRef } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import {
+  buildInvoiceHtml,
+  type InvoiceHtmlData,
+  type InvoiceHtmlItem,
+} from "@/lib/invoiceHtml";
 
 interface InvoicePdfPreviewProps {
   open: boolean;
   onClose: () => void;
-  invoiceId: string;
+  // Either pass invoiceId to load from DB, or pass formData + items for client-side preview
+  invoiceId?: string;
+  formData?: InvoiceHtmlData;
+  items?: InvoiceHtmlItem[];
 }
 
-export function InvoicePdfPreview({ open, onClose, invoiceId }: InvoicePdfPreviewProps) {
+export function InvoicePdfPreview({
+  open,
+  onClose,
+  invoiceId,
+  formData,
+  items,
+}: InvoicePdfPreviewProps) {
   const [loading, setLoading] = useState(false);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Store refs to avoid dependency issues with inline objects
+  const formDataRef = useRef(formData);
+  const itemsRef = useRef(items);
+  formDataRef.current = formData;
+  itemsRef.current = items;
 
   useEffect(() => {
     if (!open) {
@@ -22,25 +42,38 @@ export function InvoicePdfPreview({ open, onClose, invoiceId }: InvoicePdfPrevie
       return;
     }
 
-    const fetchPdf = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke("generate-invoice-pdf", {
-          body: { invoiceId },
-        });
+    // Client-side preview from form data (works before saving)
+    if (formDataRef.current && itemsRef.current) {
+      const html = buildInvoiceHtml(formDataRef.current, itemsRef.current);
+      setHtmlContent(html);
+      return;
+    }
 
-        if (error) throw error;
+    // Server-side preview from saved invoice
+    if (invoiceId) {
+      const fetchPdf = async () => {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase.functions.invoke(
+            "generate-invoice-pdf",
+            {
+              body: { invoiceId },
+            }
+          );
 
-        const decoded = decodeURIComponent(escape(atob(data.pdf)));
-        setHtmlContent(decoded);
-      } catch (err) {
-        console.error("Error generating PDF preview:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+          if (error) throw error;
 
-    fetchPdf();
+          const decoded = decodeURIComponent(escape(atob(data.pdf)));
+          setHtmlContent(decoded);
+        } catch (err) {
+          console.error("Error generating PDF preview:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchPdf();
+    }
   }, [open, invoiceId]);
 
   const handlePrint = () => {
@@ -50,6 +83,7 @@ export function InvoicePdfPreview({ open, onClose, invoiceId }: InvoicePdfPrevie
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0">
+        <DialogTitle className="sr-only">Dokumentvorschau</DialogTitle>
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handlePrint}>

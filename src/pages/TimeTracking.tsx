@@ -44,7 +44,7 @@ type ExistingEntry = {
 
 interface TimeBlock {
   id: string;
-  locationType: "baustelle" | "werkstatt";
+  locationType: "baustelle" | "werkstatt" | "regie";
   projectId: string;
   taetigkeit: string;
   startTime: string;
@@ -54,6 +54,7 @@ interface TimeBlock {
   selectedEmployees: string[];
   manualHours: string;
   disturbanceId: string;
+  selectedDisturbanceIds: string[];
 }
 
 type Disturbance = {
@@ -75,6 +76,7 @@ const createDefaultBlock = (startTime = "", endTime = "", pauseStart = "", pause
   selectedEmployees: [],
   manualHours: "",
   disturbanceId: "",
+  selectedDisturbanceIds: [],
 });
 
 const TimeTracking = () => {
@@ -613,12 +615,20 @@ const TimeTracking = () => {
       const blockHours = calculateBlockHours(block);
       const pauseMinutes = calculateBlockPauseMinutes(block);
 
+      // Determine DB location_type (regie is stored as baustelle)
+      const dbLocationType = block.locationType === "regie" ? "baustelle" : block.locationType;
+
+      // For regie: store selected disturbance IDs as a note
+      const regieNotizen = block.locationType === "regie" && block.selectedDisturbanceIds.length > 0
+        ? `Regie-Zuordnung: ${block.selectedDisturbanceIds.join(",")}`
+        : null;
+
       // Prepare main entry for current user
       const mainEntry = {
         user_id: user.id,
         datum: selectedDate,
-        project_id: block.locationType === "werkstatt" ? null : (block.projectId || null),
-        disturbance_id: block.disturbanceId || null,
+        project_id: block.locationType === "werkstatt" || block.locationType === "regie" ? null : (block.projectId || null),
+        disturbance_id: null,
         taetigkeit: block.taetigkeit,
         stunden: blockHours,
         start_time: block.startTime,
@@ -626,8 +636,8 @@ const TimeTracking = () => {
         pause_minutes: pauseMinutes,
         pause_start: block.pauseStart || null,
         pause_end: block.pauseEnd || null,
-        location_type: block.locationType,
-        notizen: null,
+        location_type: dbLocationType,
+        notizen: regieNotizen,
         week_type: null,
       };
 
@@ -635,7 +645,7 @@ const TimeTracking = () => {
       const teamEntries = block.selectedEmployees.map(workerId => ({
         user_id: workerId,
         datum: selectedDate,
-        project_id: block.locationType === "werkstatt" ? null : (block.projectId || null),
+        project_id: block.locationType === "werkstatt" || block.locationType === "regie" ? null : (block.projectId || null),
         taetigkeit: block.taetigkeit,
         stunden: blockHours,
         start_time: block.startTime,
@@ -643,8 +653,8 @@ const TimeTracking = () => {
         pause_minutes: pauseMinutes,
         pause_start: block.pauseStart || null,
         pause_end: block.pauseEnd || null,
-        location_type: block.locationType,
-        notizen: null,
+        location_type: dbLocationType,
+        notizen: regieNotizen,
         week_type: null,
       }));
 
@@ -833,10 +843,10 @@ const TimeTracking = () => {
                         {/* Location selection */}
                         <div className="space-y-2">
                           <Label>Arbeitsort</Label>
-                          <RadioGroup 
-                            value={block.locationType} 
-                            onValueChange={(value: 'baustelle' | 'werkstatt') => updateBlock(block.id, { locationType: value })} 
-                            className="grid grid-cols-2 gap-4"
+                          <RadioGroup
+                            value={block.locationType}
+                            onValueChange={(value: 'baustelle' | 'werkstatt' | 'regie') => updateBlock(block.id, { locationType: value, taetigkeit: value === 'regie' ? 'Regiearbeit' : block.taetigkeit })}
+                            className="grid grid-cols-3 gap-3"
                           >
                             <div>
                               <RadioGroupItem value="baustelle" id={`baustelle-${block.id}`} className="peer sr-only" />
@@ -850,6 +860,12 @@ const TimeTracking = () => {
                                 🔧 Werkstatt
                               </Label>
                             </div>
+                            <div>
+                              <RadioGroupItem value="regie" id={`regie-${block.id}`} className="peer sr-only" />
+                              <Label htmlFor={`regie-${block.id}`} className="flex h-12 cursor-pointer items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-primary text-sm">
+                                📋 Regie
+                              </Label>
+                            </div>
                           </RadioGroup>
                         </div>
 
@@ -857,8 +873,8 @@ const TimeTracking = () => {
                         {block.locationType === "baustelle" && (
                           <div className="space-y-2">
                             <Label>Projekt <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                            <Select 
-                              value={block.projectId} 
+                            <Select
+                              value={block.projectId}
                               onValueChange={(value) => {
                                 if (value === "new") {
                                   setPendingBlockIdForNewProject(block.id);
@@ -881,44 +897,63 @@ const TimeTracking = () => {
                           </div>
                         )}
 
-                        {/* Activity - optional */}
-                        <div className="space-y-2">
-                          <Label>Tätigkeit <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                          <div className="flex gap-2">
+                        {/* Regie: Disturbance report selection (multi-select) */}
+                        {block.locationType === "regie" && disturbances.length > 0 && (
+                          <div className="space-y-2">
+                            <Label>Regieberichte zuordnen <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                            <div className="border rounded-md p-2 space-y-1 max-h-48 overflow-y-auto">
+                              {disturbances.map(d => {
+                                const isSelected = block.selectedDisturbanceIds.includes(d.id);
+                                return (
+                                  <label
+                                    key={d.id}
+                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-accent text-sm ${isSelected ? 'bg-primary/10' : ''}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => {
+                                        const newIds = isSelected
+                                          ? block.selectedDisturbanceIds.filter(id => id !== d.id)
+                                          : [...block.selectedDisturbanceIds, d.id];
+                                        updateBlock(block.id, { selectedDisturbanceIds: newIds });
+                                      }}
+                                      className="rounded border-muted"
+                                    />
+                                    <span>{new Date(d.datum).toLocaleDateString("de-AT")} - {d.kunde_name}</span>
+                                    <Badge variant="outline" className="ml-auto text-xs">{d.status}</Badge>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                            {block.selectedDisturbanceIds.length > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                {block.selectedDisturbanceIds.length} Regiebericht(e) ausgewählt (nur als Vermerk)
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Activity - optional (not for Regie, auto-set) */}
+                        {block.locationType !== "regie" ? (
+                          <div className="space-y-2">
+                            <Label>Tätigkeit <span className="text-muted-foreground font-normal">(optional)</span></Label>
                             <Input
                               value={block.taetigkeit}
-                              onChange={(e) => updateBlock(block.id, { taetigkeit: e.target.value, disturbanceId: "" })}
+                              onChange={(e) => updateBlock(block.id, { taetigkeit: e.target.value })}
                               placeholder="z.B. Montage, Aufmaß..."
-                              className="flex-1"
                             />
-                            <Button
-                              type="button"
-                              variant={block.taetigkeit === "Regiearbeit" ? "default" : "outline"}
-                              size="sm"
-                              className="shrink-0 text-xs"
-                              onClick={() => updateBlock(block.id, { taetigkeit: "Regiearbeit" })}
-                            >
-                              Regie
-                            </Button>
                           </div>
-                          {block.taetigkeit === "Regiearbeit" && disturbances.length > 0 && (
-                            <Select
-                              value={block.disturbanceId}
-                              onValueChange={(v) => updateBlock(block.id, { disturbanceId: v })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Regiebericht auswählen (optional)" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {disturbances.map(d => (
-                                  <SelectItem key={d.id} value={d.id}>
-                                    {new Date(d.datum).toLocaleDateString("de-AT")} - {d.kunde_name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <Label>Tätigkeit</Label>
+                            <Input
+                              value={block.taetigkeit}
+                              onChange={(e) => updateBlock(block.id, { taetigkeit: e.target.value })}
+                              placeholder="Regiearbeit"
+                            />
+                          </div>
+                        )}
 
                         {/* Start/End/Pause time inputs */}
                         <div className="grid grid-cols-2 gap-3">

@@ -1,13 +1,45 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Shared HTML generator for invoice/offer PDF preview
+// Used both client-side (preview) and matches edge function output
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+export interface InvoiceHtmlData {
+  typ: string;
+  nummer: string;
+  status: string;
+  kunde_name: string;
+  kunde_adresse?: string | null;
+  kunde_plz?: string | null;
+  kunde_ort?: string | null;
+  kunde_land?: string | null;
+  kunde_email?: string | null;
+  kunde_telefon?: string | null;
+  kunde_uid?: string | null;
+  datum: string;
+  faellig_am?: string | null;
+  leistungsdatum?: string | null;
+  gueltig_bis?: string | null;
+  zahlungsbedingungen?: string | null;
+  notizen?: string | null;
+  netto_summe: number;
+  mwst_satz: number;
+  mwst_betrag: number;
+  brutto_summe: number;
+  bezahlt_betrag?: number;
+  rabatt_prozent?: number;
+  rabatt_betrag?: number;
+  mahnstufe?: number;
+}
+
+export interface InvoiceHtmlItem {
+  position: number;
+  beschreibung: string;
+  menge: number;
+  einheit: string;
+  einzelpreis: number;
+  gesamtpreis: number;
+}
 
 function fmt(val: number): string {
-  return val.toFixed(2).replace('.', ',');
+  return val.toFixed(2).replace(".", ",");
 }
 
 function fmtCurrency(val: number): string {
@@ -26,40 +58,59 @@ const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 140" 
   <rect x="0" y="136" width="480" height="4" fill="#CC0000"/>
 </svg>`;
 
-function buildHtml(invoice: any, items: any[]): string {
+export function buildInvoiceHtml(
+  invoice: InvoiceHtmlData,
+  items: InvoiceHtmlItem[]
+): string {
   const isAngebot = invoice.typ === "angebot";
   const typLabel = isAngebot ? "Angebot" : "Rechnung";
   const accent = "#CC0000";
 
   const datumFormatted = new Date(invoice.datum).toLocaleDateString("de-AT");
-  const faelligFormatted = invoice.faellig_am ? new Date(invoice.faellig_am).toLocaleDateString("de-AT") : null;
-  const leistungFormatted = invoice.leistungsdatum ? new Date(invoice.leistungsdatum).toLocaleDateString("de-AT") : null;
-  const gueltigBisFormatted = invoice.gueltig_bis ? new Date(invoice.gueltig_bis).toLocaleDateString("de-AT") : null;
+  const faelligFormatted = invoice.faellig_am
+    ? new Date(invoice.faellig_am).toLocaleDateString("de-AT")
+    : null;
+  const leistungFormatted = invoice.leistungsdatum
+    ? new Date(invoice.leistungsdatum).toLocaleDateString("de-AT")
+    : null;
+  const gueltigBisFormatted = invoice.gueltig_bis
+    ? new Date(invoice.gueltig_bis).toLocaleDateString("de-AT")
+    : null;
 
   const bezahltBetrag = Number(invoice.bezahlt_betrag) || 0;
   const rabattProzent = Number(invoice.rabatt_prozent) || 0;
   const rabattBetrag = Number(invoice.rabatt_betrag) || 0;
-  const positionenNetto = (items || []).reduce((sum: number, it: any) => sum + Number(it.gesamtpreis), 0);
-  const rabattWert = rabattProzent > 0 ? positionenNetto * (rabattProzent / 100) : rabattBetrag;
+  const positionenNetto = (items || []).reduce(
+    (sum, it) => sum + Number(it.gesamtpreis),
+    0
+  );
+  const rabattWert =
+    rabattProzent > 0
+      ? positionenNetto * (rabattProzent / 100)
+      : rabattBetrag;
   const hasRabatt = rabattWert > 0;
   const restBetrag = Number(invoice.brutto_summe) - bezahltBetrag;
   const showPaymentInfo = !isAngebot && bezahltBetrag > 0;
   const mahnstufe = Number(invoice.mahnstufe) || 0;
 
-  const itemRows = (items || []).map((item: any, idx: number) => `
-    <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'};">
+  const itemRows = (items || [])
+    .map(
+      (item, idx) => `
+    <tr style="background:${idx % 2 === 0 ? "#fff" : "#fafafa"};">
       <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;color:#888;text-align:center;font-size:9pt;">${item.position}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;color:#1a1a1a;font-size:9.5pt;white-space:pre-wrap;">${item.beschreibung}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;text-align:right;color:#444;font-size:9pt;">${fmt(Number(item.menge))}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;text-align:center;color:#444;font-size:9pt;">${item.einheit || 'Stk.'}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;text-align:center;color:#444;font-size:9pt;">${item.einheit || "Stk."}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;text-align:right;color:#444;font-size:9pt;">${fmtCurrency(Number(item.einzelpreis))}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:600;color:#1a1a1a;font-size:9.5pt;">${fmtCurrency(Number(item.gesamtpreis))}</td>
-    </tr>`).join("");
+    </tr>`
+    )
+    .join("");
 
-  let totalsHtml = '';
+  let totalsHtml = "";
   if (hasRabatt) {
     totalsHtml += `<tr><td style="padding:5px 0;color:#666;font-size:9.5pt;">Zwischensumme</td><td style="padding:5px 0;text-align:right;color:#333;font-size:9.5pt;">${fmtCurrency(positionenNetto)}</td></tr>`;
-    totalsHtml += `<tr><td style="padding:5px 0;color:#CC0000;font-size:9.5pt;">Rabatt${rabattProzent > 0 ? ` (${rabattProzent}%)` : ''}</td><td style="padding:5px 0;text-align:right;color:#CC0000;font-size:9.5pt;">- ${fmtCurrency(rabattWert)}</td></tr>`;
+    totalsHtml += `<tr><td style="padding:5px 0;color:#CC0000;font-size:9.5pt;">Rabatt${rabattProzent > 0 ? ` (${rabattProzent}%)` : ""}</td><td style="padding:5px 0;text-align:right;color:#CC0000;font-size:9.5pt;">- ${fmtCurrency(rabattWert)}</td></tr>`;
   }
   totalsHtml += `<tr><td style="padding:5px 0;color:#666;font-size:9.5pt;">Nettobetrag</td><td style="padding:5px 0;text-align:right;color:#333;font-size:9.5pt;">${fmtCurrency(Number(invoice.netto_summe))}</td></tr>`;
   totalsHtml += `<tr><td style="padding:5px 0;color:#666;font-size:9.5pt;">USt. ${Number(invoice.mwst_satz).toFixed(0)}%</td><td style="padding:5px 0;text-align:right;color:#333;font-size:9.5pt;">${fmtCurrency(Number(invoice.mwst_betrag))}</td></tr>`;
@@ -71,24 +122,43 @@ function buildHtml(invoice: any, items: any[]): string {
   }
 
   const metaParts: string[] = [];
-  metaParts.push(`<div><span class="meta-label">${typLabel} Nr.</span><span class="meta-value">${invoice.nummer}</span></div>`);
-  metaParts.push(`<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`);
-  if (leistungFormatted) metaParts.push(`<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`);
-  if (faelligFormatted) metaParts.push(`<div><span class="meta-label">Fällig am</span><span class="meta-value">${faelligFormatted}</span></div>`);
-  if (gueltigBisFormatted) metaParts.push(`<div><span class="meta-label">Gültig bis</span><span class="meta-value">${gueltigBisFormatted}</span></div>`);
-  if (invoice.zahlungsbedingungen) metaParts.push(`<div><span class="meta-label">Zahlung</span><span class="meta-value">${invoice.zahlungsbedingungen}</span></div>`);
+  metaParts.push(
+    `<div><span class="meta-label">${typLabel} Nr.</span><span class="meta-value">${invoice.nummer || "–"}</span></div>`
+  );
+  metaParts.push(
+    `<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`
+  );
+  if (leistungFormatted)
+    metaParts.push(
+      `<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`
+    );
+  if (faelligFormatted)
+    metaParts.push(
+      `<div><span class="meta-label">Fällig am</span><span class="meta-value">${faelligFormatted}</span></div>`
+    );
+  if (gueltigBisFormatted)
+    metaParts.push(
+      `<div><span class="meta-label">Gültig bis</span><span class="meta-value">${gueltigBisFormatted}</span></div>`
+    );
+  if (invoice.zahlungsbedingungen)
+    metaParts.push(
+      `<div><span class="meta-label">Zahlung</span><span class="meta-value">${invoice.zahlungsbedingungen}</span></div>`
+    );
 
-  const mahnBanner = mahnstufe > 0 ? `
+  const mahnBanner =
+    mahnstufe > 0
+      ? `
     <div style="background:#fef2f2;border:2px solid #CC0000;border-radius:6px;padding:12px 20px;margin-bottom:20px;text-align:center;font-weight:800;color:#CC0000;font-size:12pt;letter-spacing:1px;">
       ⚠ ${mahnstufe}. MAHNUNG
-    </div>` : '';
+    </div>`
+      : "";
 
   const closingText = isAngebot
     ? `<div class="closing-text">Wir freuen uns auf Ihren Auftrag und stehen für Rückfragen jederzeit gerne zur Verfügung.</div>`
     : `<div class="closing-text">Wir bedanken uns für Ihren Auftrag und bitten um Überweisung des Rechnungsbetrages innerhalb der angegebenen Zahlungsfrist.</div>`;
 
   return `<!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer}</title>
+<html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
 <style>
   @page { size: A4; margin: 15mm 18mm 28mm 18mm; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } }
@@ -163,7 +233,7 @@ function buildHtml(invoice: any, items: any[]): string {
   body.has-bar { padding-top: 56px; }
 </style>
 </head>
-<body class="${invoice.status === 'storniert' ? 'storniert' : ''} has-bar">
+<body class="${invoice.status === "storniert" ? "storniert" : ""} has-bar">
 
 <div class="print-bar no-print">
   <button class="btn-print" onclick="window.print()">Als PDF speichern / Drucken</button>
@@ -180,7 +250,7 @@ ${mahnBanner}
   <div style="display:flex;align-items:center;gap:20px;">
     <div class="header-contact">
       Bahnhofstr. 174 · 8831 Niederwölz<br>
-      Tel: <a href="tel:+436644435346">+43 664 44 35 346</a><br>
+      Tel: <a href="tel:+436641234567">+43 664 44 35 346</a><br>
       <a href="mailto:info@ft-tilger.at">info@ft-tilger.at</a>
     </div>
     <div class="doc-badge">${typLabel}</div>
@@ -197,12 +267,12 @@ ${mahnBanner}
 <div class="addresses">
   <div class="addr">
     <div class="addr-label">Empfänger</div>
-    <div class="addr-name">${invoice.kunde_name}</div>
+    <div class="addr-name">${invoice.kunde_name || "–"}</div>
     <div class="addr-detail">
-      ${invoice.kunde_adresse ? `${invoice.kunde_adresse}<br>` : ''}
-      ${(invoice.kunde_plz || invoice.kunde_ort) ? `${invoice.kunde_plz || ''} ${invoice.kunde_ort || ''}<br>` : ''}
-      ${invoice.kunde_land && invoice.kunde_land !== 'Österreich' ? `${invoice.kunde_land}<br>` : ''}
-      ${invoice.kunde_uid ? `<span style="color:#999;font-size:8pt;">UID: ${invoice.kunde_uid}</span>` : ''}
+      ${invoice.kunde_adresse ? `${invoice.kunde_adresse}<br>` : ""}
+      ${invoice.kunde_plz || invoice.kunde_ort ? `${invoice.kunde_plz || ""} ${invoice.kunde_ort || ""}<br>` : ""}
+      ${invoice.kunde_land && invoice.kunde_land !== "Österreich" ? `${invoice.kunde_land}<br>` : ""}
+      ${invoice.kunde_uid ? `<span style="color:#999;font-size:8pt;">UID: ${invoice.kunde_uid}</span>` : ""}
     </div>
   </div>
   <div class="addr" style="text-align:right;">
@@ -219,7 +289,7 @@ ${mahnBanner}
 
 <!-- Document Meta -->
 <div class="meta-grid">
-  ${metaParts.join('')}
+  ${metaParts.join("")}
 </div>
 
 <!-- Items Table -->
@@ -246,11 +316,13 @@ ${mahnBanner}
   </table>
 </div>
 
-${invoice.notizen ? `<div class="notes"><strong>Anmerkung:</strong> ${invoice.notizen}</div>` : ''}
+${invoice.notizen ? `<div class="notes"><strong>Anmerkung:</strong> ${invoice.notizen}</div>` : ""}
 
 ${closingText}
 
-${!isAngebot ? `<!-- Bank Details -->
+${
+  !isAngebot
+    ? `<!-- Bank Details -->
 <div class="bank-info">
   <div class="bank-info-title">Bankverbindung</div>
   <div class="bank-info-grid">
@@ -258,7 +330,9 @@ ${!isAngebot ? `<!-- Bank Details -->
     <div><div class="bank-info-label">IBAN</div><div class="bank-info-value">AT61 2081 5000 0423 1474</div></div>
     <div><div class="bank-info-label">BIC</div><div class="bank-info-value">STSPAT2GXXX</div></div>
   </div>
-</div>` : ''}
+</div>`
+    : ""
+}
 
 </div>
 
@@ -298,49 +372,3 @@ ${!isAngebot ? `<!-- Bank Details -->
 
 </body></html>`;
 }
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { invoiceId } = await req.json();
-    if (!invoiceId) {
-      return new Response(JSON.stringify({ error: "invoiceId required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: invoice, error: invError } = await supabase
-      .from("invoices").select("*").eq("id", invoiceId).single();
-
-    if (invError || !invoice) {
-      return new Response(JSON.stringify({ error: "Invoice not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: items } = await supabase
-      .from("invoice_items").select("*").eq("invoice_id", invoiceId).order("position");
-
-    const html = buildHtml(invoice, items || []);
-    const base64Html = btoa(unescape(encodeURIComponent(html)));
-
-    return new Response(JSON.stringify({ pdf: base64Html, format: "html" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error("Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-});
