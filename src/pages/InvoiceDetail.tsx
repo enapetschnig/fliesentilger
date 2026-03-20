@@ -16,7 +16,7 @@ import { ImportMaterialsDialog } from "@/components/ImportMaterialsDialog";
 import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { format, addDays } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { PageHeader } from "@/components/PageHeader";
 import {
   AlertDialog,
@@ -170,7 +170,7 @@ export default function InvoiceDetail() {
     project_id: null,
     bezahlt_betrag: 0,
     customer_id: null,
-    gueltig_bis: defaultTyp === "angebot" ? format(addDays(new Date(), 30), "yyyy-MM-dd") : "",
+    gueltig_bis: defaultTyp === "angebot" ? format(addMonths(new Date(), 1), "yyyy-MM-dd") : "",
     rabatt_prozent: 0,
     rabatt_betrag: 0,
     mahnstufe: 0,
