@@ -16,7 +16,7 @@ import { ImportMaterialsDialog } from "@/components/ImportMaterialsDialog";
 import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { PageHeader } from "@/components/PageHeader";
 import {
   AlertDialog,
@@ -163,14 +163,14 @@ export default function InvoiceDetail() {
     kunde_uid: "",
     datum: format(new Date(), "yyyy-MM-dd"),
     faellig_am: "",
-    leistungsdatum: "",
+    leistungsdatum: format(new Date(), "yyyy-MM-dd"),
     zahlungsbedingungen: "14 Tage netto",
     notizen: "",
     mwst_satz: 20,
     project_id: null,
     bezahlt_betrag: 0,
     customer_id: null,
-    gueltig_bis: "",
+    gueltig_bis: defaultTyp === "angebot" ? format(addDays(new Date(), 30), "yyyy-MM-dd") : "",
     rabatt_prozent: 0,
     rabatt_betrag: 0,
     mahnstufe: 0,
@@ -478,10 +478,14 @@ export default function InvoiceDetail() {
     }
   };
 
-  const handleSaveAndPreview = async () => {
+  const handlePreview = () => {
+    setPreviewOpen(true);
+  };
+
+  const handleSaveFromPreview = async () => {
     const success = await handleSave();
     if (success) {
-      setPreviewOpen(true);
+      toast({ title: "Gespeichert" });
     }
   };
 
@@ -1228,9 +1232,9 @@ export default function InvoiceDetail() {
           {/* Actions */}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => navigate("/invoices")}>Abbrechen</Button>
-            <Button onClick={handleSaveAndPreview} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" />
-              {saving ? "Speichert..." : "Speichern & Vorschau"}
+            <Button onClick={handlePreview} className="gap-2">
+              <Eye className="w-4 h-4" />
+              Vorschau
             </Button>
           </div>
         </div>
@@ -1272,6 +1276,8 @@ export default function InvoiceDetail() {
         <InvoicePdfPreview
           open={previewOpen}
           onClose={() => setPreviewOpen(false)}
+          onSave={handleSaveFromPreview}
+          saving={saving}
           formData={{
             typ: form.typ,
             nummer: form.nummer,

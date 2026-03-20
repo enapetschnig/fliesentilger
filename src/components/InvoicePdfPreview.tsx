@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X } from "lucide-react";
+import { Download, X, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import {
@@ -13,6 +13,8 @@ import {
 interface InvoicePdfPreviewProps {
   open: boolean;
   onClose: () => void;
+  onSave?: () => Promise<void> | void;
+  saving?: boolean;
   // Either pass invoiceId to load from DB, or pass formData + items for client-side preview
   invoiceId?: string;
   formData?: InvoiceHtmlData;
@@ -22,6 +24,8 @@ interface InvoicePdfPreviewProps {
 export function InvoicePdfPreview({
   open,
   onClose,
+  onSave,
+  saving,
   invoiceId,
   formData,
   items,
@@ -86,9 +90,15 @@ export function InvoicePdfPreview({
         <DialogTitle className="sr-only">Dokumentvorschau</DialogTitle>
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex gap-2">
+            {onSave && (
+              <Button size="sm" onClick={onSave} disabled={saving} className="gap-2 bg-green-600 hover:bg-green-700">
+                <Save className="h-4 w-4" />
+                {saving ? "Speichert..." : "Speichern"}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Download className="h-4 w-4 mr-2" />
-              PDF speichern / Drucken
+              PDF / Drucken
             </Button>
             <Button variant="outline" size="sm" onClick={onClose}>
               <X className="h-4 w-4 mr-2" />
