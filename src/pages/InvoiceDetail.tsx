@@ -1121,7 +1121,20 @@ export default function InvoiceDetail() {
                           <Input type="number" value={item.menge} onChange={(e) => updateItem(idx, "menge", Number(e.target.value))} min={0} step={0.01} />
                         </TableCell>
                         <TableCell>
-                          <Input value={item.einheit} onChange={(e) => updateItem(idx, "einheit", e.target.value)} />
+                          <Select value={item.einheit || "Stk."} onValueChange={(v) => updateItem(idx, "einheit", v)}>
+                            <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Stk.">Stk.</SelectItem>
+                              <SelectItem value="m²">m²</SelectItem>
+                              <SelectItem value="lfm">lfm</SelectItem>
+                              <SelectItem value="kg">kg</SelectItem>
+                              <SelectItem value="Sack">Sack</SelectItem>
+                              <SelectItem value="Eimer">Eimer</SelectItem>
+                              <SelectItem value="Pkg.">Pkg.</SelectItem>
+                              <SelectItem value="Std.">Std.</SelectItem>
+                              <SelectItem value="psch.">psch.</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           <Input type="number" value={item.einzelpreis} onChange={(e) => updateItem(idx, "einzelpreis", Number(e.target.value))} min={0} step={0.01} />
