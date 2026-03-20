@@ -62,7 +62,7 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
-            <img src="/fliesentilger-logo.svg" alt="Fliesentechnik Tilger" className="h-16 w-auto object-contain" />
+            <img src="/logo-tilger.png" alt="Fliesentechnik Tilger" className="h-16 w-auto object-contain" />
             <div>
               <h1 className="text-4xl font-bold text-foreground">Fliesentechnik Tilger</h1>
               <p className="text-muted-foreground">Baustellendokumentation & Zeiterfassung</p>

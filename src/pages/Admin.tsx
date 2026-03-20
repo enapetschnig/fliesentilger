@@ -585,7 +585,7 @@ export default function Admin() {
               <span className="hidden sm:inline">Zurück</span>
             </Button>
             <img 
-              src="/fliesentilger-logo.svg"
+              src="/logo-tilger.png"
               alt="Fliesentechnik Tilger"
               className="h-8 sm:h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity object-contain" 
               onClick={() => navigate("/")}
