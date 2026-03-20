@@ -15,6 +15,7 @@ import { InvoicePdfPreview } from "@/components/InvoicePdfPreview";
 import { ImportMaterialsDialog } from "@/components/ImportMaterialsDialog";
 import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
 import { ImportFromOfferDialog } from "@/components/ImportFromOfferDialog";
+import { ImportTimeDialog } from "@/components/ImportTimeDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { format, addMonths } from "date-fns";
@@ -146,6 +147,7 @@ export default function InvoiceDetail() {
   const [importMaterialsOpen, setImportMaterialsOpen] = useState(false);
   const [importDisturbanceOpen, setImportDisturbanceOpen] = useState(false);
   const [importOfferOpen, setImportOfferOpen] = useState(false);
+  const [importTimeOpen, setImportTimeOpen] = useState(false);
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
   const defaultTyp = searchParams.get("typ") || "rechnung";
 
@@ -1091,6 +1093,10 @@ export default function InvoiceDetail() {
                     <FileText className="w-4 h-4" />
                     Aus Angebot
                   </Button>
+                  <Button onClick={() => setImportTimeOpen(true)} variant="outline" size="sm" className="gap-1">
+                    <TrendingUp className="w-4 h-4" />
+                    Arbeitszeit
+                  </Button>
                   <Button onClick={() => setImportMaterialsOpen(true)} variant="outline" size="sm" className="gap-1">
                     <Import className="w-4 h-4" />
                     Material
@@ -1371,6 +1377,26 @@ export default function InvoiceDetail() {
             }
             setImportDisturbanceOpen(false);
             toast({ title: "Regiebericht importiert", description: `${newItems.length} Positionen hinzugefügt` });
+          }}
+        />
+
+        {/* Import Time Dialog */}
+        <ImportTimeDialog
+          open={importTimeOpen}
+          onClose={() => setImportTimeOpen(false)}
+          projectId={form.project_id}
+          onImport={(importedItems) => {
+            const newItems = importedItems.map((item, idx) => ({
+              position: items.length + idx + 1,
+              beschreibung: item.beschreibung,
+              menge: item.menge,
+              einheit: item.einheit,
+              einzelpreis: item.einzelpreis,
+              gesamtpreis: item.menge * item.einzelpreis,
+            }));
+            setItems(prev => [...prev, ...newItems]);
+            setImportTimeOpen(false);
+            toast({ title: "Arbeitszeit importiert", description: `${newItems.length} Positionen hinzugefügt` });
           }}
         />
 
