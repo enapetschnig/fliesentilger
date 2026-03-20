@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { FileText, Receipt, Filter, AlertTriangle } from "lucide-react";
+import { FileText, Receipt, AlertTriangle } from "lucide-react";
 import { format, parseISO, isBefore } from "date-fns";
 import { de } from "date-fns/locale";
 import { PageHeader } from "@/components/PageHeader";
@@ -37,6 +37,7 @@ const statusColors: Record<string, string> = {
   abgelehnt: "bg-red-100 text-red-800",
   angenommen: "bg-green-100 text-green-800",
   verrechnet: "bg-purple-100 text-purple-800",
+  offen: "bg-blue-100 text-blue-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -48,7 +49,11 @@ const statusLabels: Record<string, string> = {
   abgelehnt: "Abgelehnt",
   angenommen: "Angenommen",
   verrechnet: "Verrechnet",
+  offen: "Offen",
 };
+
+const rechnungStatuses = ["entwurf", "gesendet", "teilbezahlt", "bezahlt", "storniert"];
+const angebotStatuses = ["entwurf", "gesendet", "angenommen", "abgelehnt"];
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -62,6 +67,11 @@ export default function Invoices() {
     fetchInvoices();
   }, []);
 
+  // Reset status filter when typ changes
+  useEffect(() => {
+    setFilterStatus("alle");
+  }, [filterTyp]);
+
   const fetchInvoices = async () => {
     const { data, error } = await supabase
       .from("invoices")
@@ -74,6 +84,17 @@ export default function Invoices() {
       setInvoices((data || []).map(d => ({ ...d, mahnstufe: (d as any).mahnstufe || 0, gueltig_bis: (d as any).gueltig_bis || null, bezahlt_betrag: Number((d as any).bezahlt_betrag) || 0 })));
     }
     setLoading(false);
+  };
+
+  const handleStatusChange = async (invoiceId: string, newStatus: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("invoices").update({ status: newStatus }).eq("id", invoiceId);
+    if (error) {
+      toast({ variant: "destructive", title: "Fehler", description: "Status konnte nicht geändert werden" });
+    } else {
+      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
+      toast({ title: "Status geändert", description: `Status auf "${statusLabels[newStatus]}" gesetzt` });
+    }
   };
 
   const today = new Date();
@@ -101,10 +122,17 @@ export default function Invoices() {
   const totalAngebote = invoices.filter(i => i.typ === "angebot").length;
   const offeneSumme = invoices
     .filter(i => i.typ === "rechnung" && (i.status === "gesendet" || i.status === "teilbezahlt"))
-    .reduce((sum, i) => sum + Number(i.brutto_summe), 0);
+    .reduce((sum, i) => sum + Number(i.brutto_summe) - i.bezahlt_betrag, 0);
   const bezahlteSumme = invoices
-    .filter(i => i.typ === "rechnung" && i.status === "bezahlt")
-    .reduce((sum, i) => sum + Number(i.brutto_summe), 0);
+    .filter(i => i.typ === "rechnung" && (i.status === "bezahlt" || i.status === "teilbezahlt"))
+    .reduce((sum, i) => sum + i.bezahlt_betrag, 0);
+
+  // Status options for the filter depend on selected typ
+  const statusFilterOptions = filterTyp === "rechnung"
+    ? rechnungStatuses
+    : filterTyp === "angebot"
+      ? angebotStatuses
+      : [...new Set([...rechnungStatuses, ...angebotStatuses])];
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,30 +170,38 @@ export default function Invoices() {
           <CardHeader>
             <div className="flex justify-between items-center flex-wrap gap-4">
               <div className="flex items-center gap-3 flex-wrap">
-                <Filter className="w-5 h-5 text-muted-foreground" />
-                <Select value={filterTyp} onValueChange={setFilterTyp}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="alle">Alle Typen</SelectItem>
-                    <SelectItem value="rechnung">Rechnungen</SelectItem>
-                    <SelectItem value="angebot">Angebote</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Typ-Buttons */}
+                <div className="flex rounded-lg border overflow-hidden">
+                  <button
+                    onClick={() => setFilterTyp("alle")}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${filterTyp === "alle" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                  >
+                    Alle
+                  </button>
+                  <button
+                    onClick={() => setFilterTyp("rechnung")}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors border-l ${filterTyp === "rechnung" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                  >
+                    Rechnungen
+                  </button>
+                  <button
+                    onClick={() => setFilterTyp("angebot")}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors border-l ${filterTyp === "angebot" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                  >
+                    Angebote
+                  </button>
+                </div>
+
+                {/* Status-Filter — passt sich dem Typ an */}
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="alle">Alle Status</SelectItem>
-                    <SelectItem value="entwurf">Entwurf</SelectItem>
-                    <SelectItem value="gesendet">Gesendet</SelectItem>
-                    <SelectItem value="bezahlt">Bezahlt</SelectItem>
-                    <SelectItem value="teilbezahlt">Teilbezahlt</SelectItem>
-                    <SelectItem value="storniert">Storniert</SelectItem>
-                    <SelectItem value="angenommen">Angenommen</SelectItem>
-                    <SelectItem value="abgelehnt">Abgelehnt</SelectItem>
+                    {statusFilterOptions.map(s => (
+                      <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -202,7 +238,7 @@ export default function Invoices() {
                       <TableHead>Kunde</TableHead>
                       <TableHead>Datum</TableHead>
                       <TableHead className="text-right">Brutto</TableHead>
-                      <TableHead className="text-right">Bezahlt</TableHead>
+                      {filterTyp !== "angebot" && <TableHead className="text-right">Bezahlt</TableHead>}
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -213,6 +249,7 @@ export default function Invoices() {
                       const brutto = Number(inv.brutto_summe);
                       const bezahlt = inv.bezahlt_betrag;
                       const offen = brutto - bezahlt;
+                      const availableStatuses = inv.typ === "rechnung" ? rechnungStatuses : angebotStatuses;
                       return (
                         <TableRow
                           key={inv.id}
@@ -228,29 +265,46 @@ export default function Invoices() {
                           <TableCell>{inv.kunde_name}</TableCell>
                           <TableCell>{format(parseISO(inv.datum), "dd.MM.yyyy", { locale: de })}</TableCell>
                           <TableCell className="text-right font-medium">€ {brutto.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">
-                            {inv.typ === "rechnung" ? (
-                              <div>
-                                {inv.status === "bezahlt" ? (
-                                  <span className="text-green-600 font-medium">€ {brutto.toFixed(2)}</span>
-                                ) : bezahlt > 0 ? (
-                                  <div>
-                                    <span className="text-yellow-600 font-medium">€ {bezahlt.toFixed(2)}</span>
-                                    <div className="text-xs text-muted-foreground">offen: € {offen.toFixed(2)}</div>
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
+                          {filterTyp !== "angebot" && (
+                            <TableCell className="text-right">
+                              {inv.typ === "rechnung" ? (
+                                <div>
+                                  {inv.status === "bezahlt" ? (
+                                    <span className="text-green-600 font-medium">€ {brutto.toFixed(2)}</span>
+                                  ) : bezahlt > 0 ? (
+                                    <div>
+                                      <span className="text-yellow-600 font-medium">€ {bezahlt.toFixed(2)}</span>
+                                      <div className="text-xs text-muted-foreground">offen: € {offen.toFixed(2)}</div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          )}
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <Badge className={statusColors[inv.status] || ""}>
-                                {statusLabels[inv.status] || inv.status}
-                              </Badge>
+                              <Select
+                                value={inv.status}
+                                onValueChange={(val) => {
+                                  const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+                                  handleStatusChange(inv.id, val, fakeEvent);
+                                }}
+                              >
+                                <SelectTrigger className={`h-7 text-xs font-medium border-0 w-auto min-w-[100px] ${statusColors[inv.status] || ""}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableStatuses.map(s => (
+                                    <SelectItem key={s} value={s}>
+                                      {statusLabels[s]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               {overdue && (
                                 <Badge variant="destructive" className="gap-1 text-xs">
                                   <AlertTriangle className="w-3 h-3" />
