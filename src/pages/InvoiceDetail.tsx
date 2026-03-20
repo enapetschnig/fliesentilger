@@ -14,6 +14,7 @@ import { Plus, Trash2, Save, Download, Copy, ArrowRightLeft, AlertTriangle, Pack
 import { InvoicePdfPreview } from "@/components/InvoicePdfPreview";
 import { ImportMaterialsDialog } from "@/components/ImportMaterialsDialog";
 import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
+import { ImportFromOfferDialog } from "@/components/ImportFromOfferDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { format, addMonths } from "date-fns";
@@ -144,6 +145,7 @@ export default function InvoiceDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [importMaterialsOpen, setImportMaterialsOpen] = useState(false);
   const [importDisturbanceOpen, setImportDisturbanceOpen] = useState(false);
+  const [importOfferOpen, setImportOfferOpen] = useState(false);
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
   const defaultTyp = searchParams.get("typ") || "rechnung";
 
@@ -1084,7 +1086,15 @@ export default function InvoiceDetail() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Positionen</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <Button onClick={() => setImportOfferOpen(true)} variant="outline" size="sm" className="gap-1">
+                    <FileText className="w-4 h-4" />
+                    Aus Angebot
+                  </Button>
+                  <Button onClick={() => setImportMaterialsOpen(true)} variant="outline" size="sm" className="gap-1">
+                    <Import className="w-4 h-4" />
+                    Material
+                  </Button>
                   <Button onClick={() => setTemplateDialogOpen(true)} variant="outline" size="sm" className="gap-1">
                     <Package className="w-4 h-4" />
                     Vorlage
@@ -1361,6 +1371,30 @@ export default function InvoiceDetail() {
             }
             setImportDisturbanceOpen(false);
             toast({ title: "Regiebericht importiert", description: `${newItems.length} Positionen hinzugefügt` });
+          }}
+        />
+
+        {/* Import from Offer Dialog */}
+        <ImportFromOfferDialog
+          open={importOfferOpen}
+          onClose={() => setImportOfferOpen(false)}
+          projectId={form.project_id}
+          onImport={(importedItems, offer) => {
+            const newItems = importedItems.map((item, idx) => ({
+              position: items.length + idx + 1,
+              beschreibung: item.beschreibung,
+              menge: item.menge,
+              einheit: item.einheit,
+              einzelpreis: item.einzelpreis,
+              gesamtpreis: item.menge * item.einzelpreis,
+            }));
+            setItems(prev => [...prev, ...newItems]);
+            // Fill customer data from offer if empty
+            if (!form.kunde_name && offer.kunde_name) {
+              setForm(prev => ({ ...prev, kunde_name: offer.kunde_name }));
+            }
+            setImportOfferOpen(false);
+            toast({ title: "Aus Angebot importiert", description: `${newItems.length} Positionen hinzugefügt` });
           }}
         />
 
