@@ -410,7 +410,7 @@ export default function Index() {
           {/* Material entnehmen - Für alle */}
           <Card
             className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
-            onClick={() => navigate("/material-withdraw")}
+            onClick={() => navigate("/material")}
           >
             <CardHeader className="space-y-2 pb-3">
               <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center">

@@ -31,6 +31,7 @@ import InvoiceTemplates from "./pages/InvoiceTemplates";
 import Customers from "./pages/Customers";
 import OfferPackages from "./pages/OfferPackages";
 import MaterialWithdraw from "./pages/MaterialWithdraw";
+import LieferscheinDetail from "./pages/LieferscheinDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,8 @@ function AppContent() {
         <Route path="/invoices/:id" element={<InvoiceDetail />} />
         <Route path="/materials" element={<InvoiceTemplates />} />
         <Route path="/material-withdraw" element={<MaterialWithdraw />} />
+        <Route path="/material" element={<MaterialWithdraw />} />
+        <Route path="/material/:id" element={<LieferscheinDetail />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

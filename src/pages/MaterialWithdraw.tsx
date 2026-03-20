@@ -1,52 +1,46 @@
 import { useEffect, useState } from "react";
-import { Trash2, Package, ArrowDown, ArrowUp, Minus, Filter, RotateCcw } from "lucide-react";
+import { Trash2, Package, Plus, FileText, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 
 type Project = { id: string; name: string };
 
-type MaterialEntry = {
+type Lieferschein = {
   id: string;
+  name: string | null;
   project_id: string | null;
   user_id: string;
-  material: string;
-  menge: string | null;
-  notizen: string | null;
-  einheit: string | null;
-  einzelpreis: number | null;
-  typ: string | null;
   datum: string | null;
+  notizen: string | null;
   created_at: string;
-  profiles?: { vorname: string; nachname: string } | null;
   projects?: { name: string } | null;
+  profiles?: { vorname: string; nachname: string } | null;
+  entnahmen: number;
+  rueckgaben: number;
+  materialCount: number;
 };
 
 export default function MaterialWithdraw() {
   const { toast } = useToast();
-  const [entries, setEntries] = useState<MaterialEntry[]>([]);
+  const navigate = useNavigate();
+  const [lieferscheine, setLieferscheine] = useState<Lieferschein[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [filterProject, setFilterProject] = useState<string>("alle");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Form
   const [showForm, setShowForm] = useState(false);
-  const [newMaterial, setNewMaterial] = useState("");
-  const [newMenge, setNewMenge] = useState("");
-  const [newEinheit, setNewEinheit] = useState("Stk.");
-  const [newTyp, setNewTyp] = useState<string>("entnahme");
-  const [newNotizen, setNewNotizen] = useState("");
+  const [newName, setNewName] = useState("");
   const [newProjectId, setNewProjectId] = useState<string>("none");
   const [submitting, setSubmitting] = useState(false);
-  // Track which entry we're returning (for pre-filled form)
-  const [returningEntryId, setReturningEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     init();
@@ -62,133 +56,101 @@ export default function MaterialWithdraw() {
       .eq("user_id", user.id)
       .single();
     setIsAdmin(roleData?.role === "administrator");
-    await Promise.all([fetchProjects(), fetchEntries()]);
+    await Promise.all([fetchProjects(), fetchLieferscheine()]);
     setLoading(false);
   };
 
   const fetchProjects = async () => {
-    const { data } = await supabase
-      .from("projects")
-      .select("id, name")
-      .order("name");
+    const { data } = await supabase.from("projects").select("id, name").order("name");
     if (data) setProjects(data);
   };
 
-  const fetchEntries = async () => {
-    const { data, error } = await supabase
-      .from("material_entries")
+  const fetchLieferscheine = async () => {
+    const { data: lsData } = await supabase
+      .from("lieferscheine")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (!error && data) {
-      const userIds = [...new Set(data.map(e => e.user_id))];
-      const projectIds = [...new Set(data.map(e => e.project_id).filter(Boolean))] as string[];
+      .order("created_at", { ascending: false });
 
-      const [{ data: profiles }, { data: projectsData }] = await Promise.all([
-        supabase.from("profiles").select("id, vorname, nachname").in("id", userIds),
-        projectIds.length > 0
-          ? supabase.from("projects").select("id, name").in("id", projectIds)
-          : Promise.resolve({ data: [] }),
-      ]);
+    if (!lsData) return;
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      const projectMap = new Map(projectsData?.map(p => [p.id, p]) || []);
+    const userIds = [...new Set(lsData.map(l => l.user_id))];
+    const projectIds = [...new Set(lsData.map(l => l.project_id).filter(Boolean))] as string[];
+    const lsIds = lsData.map(l => l.id);
 
-      setEntries(data.map(entry => ({
-        ...entry,
-        profiles: profileMap.get(entry.user_id) || null,
-        projects: entry.project_id ? projectMap.get(entry.project_id) || null : null,
-      })) as MaterialEntry[]);
-    }
-  };
+    const [{ data: profiles }, { data: projectsData }, { data: entries }] = await Promise.all([
+      supabase.from("profiles").select("id, vorname, nachname").in("id", userIds),
+      projectIds.length > 0
+        ? supabase.from("projects").select("id, name").in("id", projectIds)
+        : Promise.resolve({ data: [] }),
+      lsIds.length > 0
+        ? supabase.from("material_entries").select("lieferschein_id, typ, material").in("lieferschein_id", lsIds)
+        : Promise.resolve({ data: [] }),
+    ]);
 
-  const openNewForm = (typ: string) => {
-    setNewTyp(typ);
-    setNewMaterial("");
-    setNewMenge("");
-    setNewEinheit("Stk.");
-    setNewNotizen("");
-    setNewProjectId("none");
-    setReturningEntryId(null);
-    setShowForm(true);
-  };
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    const projectMap = new Map(projectsData?.map(p => [p.id, p]) || []);
 
-  const openReturnForm = (entry: MaterialEntry) => {
-    setNewTyp("rueckgabe");
-    setNewMaterial(entry.material);
-    setNewMenge(entry.menge || "");
-    setNewEinheit(entry.einheit || "Stk.");
-    setNewProjectId(entry.project_id || "none");
-    setNewNotizen("");
-    setReturningEntryId(entry.id);
-    setShowForm(true);
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUserId || !newMaterial.trim()) return;
-    setSubmitting(true);
-    const { error } = await supabase.from("material_entries").insert({
-      project_id: newProjectId === "none" ? null : newProjectId,
-      user_id: currentUserId,
-      material: newMaterial.trim(),
-      menge: newMenge.trim() || null,
-      einheit: newEinheit,
-      einzelpreis: 0,
-      typ: newTyp,
-      notizen: newNotizen.trim() || null,
-      datum: new Date().toISOString().split("T")[0],
+    const entryStats = new Map<string, { entnahmen: number; rueckgaben: number; materials: Set<string> }>();
+    (entries || []).forEach(e => {
+      if (!e.lieferschein_id) return;
+      if (!entryStats.has(e.lieferschein_id)) {
+        entryStats.set(e.lieferschein_id, { entnahmen: 0, rueckgaben: 0, materials: new Set() });
+      }
+      const stats = entryStats.get(e.lieferschein_id)!;
+      if (e.typ === "entnahme") stats.entnahmen++;
+      else if (e.typ === "rueckgabe") stats.rueckgaben++;
+      stats.materials.add(e.material);
     });
+
+    setLieferscheine(lsData.map(ls => {
+      const stats = entryStats.get(ls.id) || { entnahmen: 0, rueckgaben: 0, materials: new Set() };
+      return {
+        ...ls,
+        profiles: profileMap.get(ls.user_id) || null,
+        projects: ls.project_id ? projectMap.get(ls.project_id) || null : null,
+        entnahmen: stats.entnahmen,
+        rueckgaben: stats.rueckgaben,
+        materialCount: stats.materials.size,
+      };
+    }));
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUserId) return;
+    setSubmitting(true);
+
+    const { data, error } = await supabase
+      .from("lieferscheine")
+      .insert({
+        name: newName.trim() || null,
+        project_id: newProjectId === "none" ? null : newProjectId,
+        user_id: currentUserId,
+        datum: new Date().toISOString().split("T")[0],
+      })
+      .select("id")
+      .single();
+
     if (error) {
-      toast({ variant: "destructive", title: "Fehler", description: "Konnte nicht gespeichert werden" });
-    } else {
-      toast({ title: newTyp === "rueckgabe" ? "Material zurückgebucht" : "Material entnommen" });
-      setNewMaterial("");
-      setNewMenge("");
-      setNewNotizen("");
-      setNewProjectId("none");
-      setReturningEntryId(null);
+      toast({ variant: "destructive", title: "Fehler", description: "Konnte nicht erstellt werden" });
+    } else if (data) {
+      toast({ title: "Lieferschein erstellt" });
       setShowForm(false);
-      fetchEntries();
+      setNewName("");
+      setNewProjectId("none");
+      navigate(`/material/${data.id}`);
     }
     setSubmitting(false);
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("material_entries").delete().eq("id", id);
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("lieferscheine").delete().eq("id", id);
     if (!error) {
       toast({ title: "Gelöscht" });
-      fetchEntries();
+      fetchLieferscheine();
     }
   };
-
-  const canDelete = (entry: MaterialEntry) => isAdmin || entry.user_id === currentUserId;
-
-  const typIcon = (typ: string | null) => {
-    if (typ === "entnahme") return <ArrowUp className="h-3.5 w-3.5 text-red-500" />;
-    if (typ === "rueckgabe") return <ArrowDown className="h-3.5 w-3.5 text-green-500" />;
-    return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
-  };
-
-  const typLabel = (typ: string | null) => {
-    if (typ === "entnahme") return "Entnommen";
-    if (typ === "rueckgabe") return "Zurückgebracht";
-    return "Verbrauch";
-  };
-
-  const typColor = (typ: string | null) => {
-    if (typ === "entnahme") return "bg-red-100 text-red-800";
-    if (typ === "rueckgabe") return "bg-green-100 text-green-800";
-    return "bg-muted text-muted-foreground";
-  };
-
-  const filtered = filterProject === "alle"
-    ? entries
-    : filterProject === "none"
-      ? entries.filter(e => !e.project_id)
-      : entries.filter(e => e.project_id === filterProject);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center"><p>Lädt...</p></div>;
@@ -196,65 +158,30 @@ export default function MaterialWithdraw() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader title="Material entnehmen" backPath="/" />
+      <PageHeader title="Material / Lieferscheine" backPath="/" />
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-4">
-        {/* Neuer Eintrag / Buttons */}
-        {!showForm && (
-          <div className="flex gap-2 flex-wrap">
-            <Button onClick={() => openNewForm("entnahme")} className="gap-2 bg-orange-600 hover:bg-orange-700">
-              <ArrowUp className="h-4 w-4" />
-              Material entnehmen
-            </Button>
-            <Button onClick={() => openNewForm("rueckgabe")} variant="outline" className="gap-2">
-              <ArrowDown className="h-4 w-4" />
-              Material zurückbringen
-            </Button>
-          </div>
-        )}
-
-        {/* Formular */}
-        {showForm && (
+        {!showForm ? (
+          <Button onClick={() => setShowForm(true)} className="gap-2 bg-orange-600 hover:bg-orange-700">
+            <Plus className="h-4 w-4" />
+            Neuer Lieferschein
+          </Button>
+        ) : (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                {newTyp === "entnahme" ? (
-                  <><ArrowUp className="h-5 w-5 text-red-500" /> Material entnehmen</>
-                ) : (
-                  <><ArrowDown className="h-5 w-5 text-green-500" /> Material zurückbringen</>
-                )}
+                <FileText className="h-5 w-5" />
+                Neuer Lieferschein
               </CardTitle>
-              {returningEntryId && (
-                <CardDescription>Vorausgefüllt von der Entnahme — Menge anpassen falls nötig</CardDescription>
-              )}
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <label className="text-sm font-medium">Material *</label>
-                    <Input value={newMaterial} onChange={(e) => setNewMaterial(e.target.value)} placeholder="z.B. Fliese 30x60 anthrazit" required />
+              <form onSubmit={handleCreate} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium">Name (optional)</label>
+                    <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="z.B. Badezimmer EG" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Menge</label>
-                    <Input value={newMenge} onChange={(e) => setNewMenge(e.target.value)} placeholder="z.B. 25" type="number" step="0.1" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Einheit</label>
-                    <Select value={newEinheit} onValueChange={setNewEinheit}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Stk.">Stk.</SelectItem>
-                        <SelectItem value="m²">m²</SelectItem>
-                        <SelectItem value="m">lfm</SelectItem>
-                        <SelectItem value="kg">kg</SelectItem>
-                        <SelectItem value="Sack">Sack</SelectItem>
-                        <SelectItem value="Eimer">Eimer</SelectItem>
-                        <SelectItem value="Pkg.">Pkg.</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-2">
                     <label className="text-sm font-medium">Projekt (optional)</label>
                     <Select value={newProjectId} onValueChange={setNewProjectId}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -266,92 +193,73 @@ export default function MaterialWithdraw() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2">
-                    <label className="text-sm font-medium">Notizen</label>
-                    <Input value={newNotizen} onChange={(e) => setNewNotizen(e.target.value)} placeholder="Optionale Bemerkung" />
-                  </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={submitting || !newMaterial.trim()} className={newTyp === "entnahme" ? "bg-orange-600 hover:bg-orange-700" : "bg-green-600 hover:bg-green-700"}>
-                    {submitting ? "Speichert..." : newTyp === "entnahme" ? "Entnehmen" : "Zurückbuchen"}
+                  <Button type="submit" disabled={submitting} className="bg-orange-600 hover:bg-orange-700">
+                    {submitting ? "Erstellt..." : "Erstellen & öffnen"}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => { setShowForm(false); setReturningEntryId(null); }}>Abbrechen</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Abbrechen</Button>
                 </div>
               </form>
             </CardContent>
           </Card>
         )}
 
-        {/* Übersicht */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Materialübersicht
-                </CardTitle>
-                <CardDescription>{filtered.length} Einträge</CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <Select value={filterProject} onValueChange={setFilterProject}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="alle">Alle Projekte</SelectItem>
-                    <SelectItem value="none">Ohne Projekt</SelectItem>
-                    {projects.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Lieferscheine
+            </CardTitle>
+            <CardDescription>{lieferscheine.length} Lieferscheine</CardDescription>
           </CardHeader>
           <CardContent>
-            {filtered.length === 0 ? (
+            {lieferscheine.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-lg font-semibold mb-2">Keine Einträge</p>
-                <p className="text-sm text-muted-foreground">Noch kein Material entnommen</p>
+                <p className="text-lg font-semibold mb-2">Keine Lieferscheine</p>
+                <p className="text-sm text-muted-foreground">Erstelle einen Lieferschein um Material zu verwalten</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {filtered.map((entry) => (
-                  <div key={entry.id} className="p-3 rounded-lg border bg-card flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {typIcon(entry.typ)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-sm truncate">{entry.material}</p>
-                          <Badge variant="secondary" className={`text-xs shrink-0 ${typColor(entry.typ)}`}>
-                            {typLabel(entry.typ)}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {entry.menge && `${entry.menge} ${entry.einheit || ""}`}
-                          {entry.profiles ? ` · ${entry.profiles.vorname} ${entry.profiles.nachname}` : ""}
-                          {entry.projects ? ` · ${entry.projects.name}` : " · Kein Projekt"}
-                          {" · "}
-                          {entry.datum ? new Date(entry.datum).toLocaleDateString("de-AT") : new Date(entry.created_at).toLocaleDateString("de-AT")}
+                {lieferscheine.map((ls) => (
+                  <div
+                    key={ls.id}
+                    className="p-4 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer flex items-center justify-between gap-3 transition-colors"
+                    onClick={() => navigate(`/material/${ls.id}`)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">
+                          {ls.name || (ls.projects ? ls.projects.name : "Ohne Name")}
                         </p>
-                        {entry.notizen && <p className="text-xs text-muted-foreground italic mt-0.5">{entry.notizen}</p>}
+                        {ls.projects && ls.name && (
+                          <Badge variant="secondary" className="text-xs">{ls.projects.name}</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                        <span>{ls.datum ? new Date(ls.datum).toLocaleDateString("de-AT") : ""}</span>
+                        {ls.profiles && <span>· {ls.profiles.vorname} {ls.profiles.nachname}</span>}
+                        <span>· {ls.materialCount} Materialien</span>
+                        {ls.entnahmen > 0 && (
+                          <Badge variant="outline" className="text-xs text-red-600 border-red-200">
+                            {ls.entnahmen} entnommen
+                          </Badge>
+                        )}
+                        {ls.rueckgaben > 0 && (
+                          <Badge variant="outline" className="text-xs text-green-600 border-green-200">
+                            {ls.rueckgaben} zurück
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {entry.typ === "entnahme" && (
-                        <Button variant="outline" size="sm" onClick={() => openReturnForm(entry)} className="gap-1 text-green-700 border-green-300 hover:bg-green-50">
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Zurückgeben</span>
-                        </Button>
-                      )}
-                      {canDelete(entry) && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(entry.id)}>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {(isAdmin || ls.user_id === currentUserId) && ls.entnahmen === 0 && ls.rueckgaben === 0 && (
+                        <Button variant="ghost" size="sm" onClick={(e) => handleDelete(ls.id, e)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
                 ))}
