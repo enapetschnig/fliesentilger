@@ -597,7 +597,7 @@ export default function Admin() {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 space-y-8">
+      <main className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 space-y-6">
         {/* ===== WARTENDE AKTIVIERUNGEN ===== */}
         {profiles.filter(p => !p.is_active).length > 0 && (
           <section>
@@ -1369,32 +1369,10 @@ export default function Admin() {
       </AlertDialog>
 
       {/* ===== URLAUBSVERWALTUNG ===== */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Urlaubsverwaltung
-          </CardTitle>
-          <CardDescription>Urlaubsanträge, Kontingente und Genehmigungen</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LeaveManagement profiles={profiles.filter(p => p.is_active)} />
-        </CardContent>
-      </Card>
+      <LeaveManagement profiles={profiles.filter(p => p.is_active)} />
 
       {/* ===== ZEITKONTO ===== */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Zeitkonten & Zeitausgleich
-          </CardTitle>
-          <CardDescription>Überstunden und Zeitausgleich der Mitarbeiter</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TimeAccountManagement profiles={profiles.filter(p => p.is_active)} />
-        </CardContent>
-      </Card>
+      <TimeAccountManagement profiles={profiles.filter(p => p.is_active)} />
 
       {/* ===== EINSTELLUNGEN SEKTION ===== */}
       <Card className="mt-6">
