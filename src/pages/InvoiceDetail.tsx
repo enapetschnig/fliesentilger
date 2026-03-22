@@ -17,6 +17,7 @@ import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
 import { ImportFromOfferDialog } from "@/components/ImportFromOfferDialog";
 import { ImportTimeDialog } from "@/components/ImportTimeDialog";
 import { ImportLieferscheinDialog } from "@/components/ImportLieferscheinDialog";
+import { ImportDisturbanceToInvoiceDialog } from "@/components/ImportDisturbanceToInvoiceDialog";
 import { ImportFromProjectDialog } from "@/components/ImportFromProjectDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -151,6 +152,7 @@ export default function InvoiceDetail() {
   const [importLieferscheinOpen, setImportLieferscheinOpen] = useState(false);
   const [importProjectOpen, setImportProjectOpen] = useState(false);
   const [importDisturbanceOpen, setImportDisturbanceOpen] = useState(false);
+  const [importRegieOpen, setImportRegieOpen] = useState(false);
   const [importOfferOpen, setImportOfferOpen] = useState(false);
   const [importTimeOpen, setImportTimeOpen] = useState(false);
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
@@ -200,6 +202,11 @@ export default function InvoiceDetail() {
       loadInvoice(id);
       loadStoredPdfs(id);
       loadPayments(id);
+    }
+    // Auto-open regiebericht import if disturbance_id is in URL
+    const distId = searchParams.get("disturbance_id");
+    if (distId && isNew) {
+      setImportRegieOpen(true);
     }
   }, [id]);
 
@@ -1249,6 +1256,10 @@ export default function InvoiceDetail() {
                     <FileText className="w-4 h-4" />
                     Aus Angebot
                   </Button>
+                  <Button onClick={() => setImportRegieOpen(true)} variant="outline" size="sm" className="gap-1">
+                    <FileText className="w-4 h-4" />
+                    Aus Regiebericht
+                  </Button>
                   <Button onClick={() => setImportProjectOpen(true)} variant="outline" size="sm" className="gap-1">
                     <TrendingUp className="w-4 h-4" />
                     Aus Projekt
@@ -1591,6 +1602,29 @@ export default function InvoiceDetail() {
             setItems(prev => mergeItems(prev, newItems));
             setImportLieferscheinOpen(false);
             toast({ title: "Material importiert", description: `${newItems.length} Positionen aus Lieferscheinen hinzugefügt` });
+          }}
+        />
+
+        {/* Import from Regiebericht Dialog */}
+        <ImportDisturbanceToInvoiceDialog
+          open={importRegieOpen}
+          onClose={() => setImportRegieOpen(false)}
+          preselectedId={searchParams.get("disturbance_id")}
+          onImport={(importedItems, kundeData) => {
+            const newItems = importedItems.map((item, idx) => ({
+              position: items.length + idx + 1,
+              beschreibung: item.beschreibung,
+              menge: item.menge,
+              einheit: item.einheit,
+              einzelpreis: item.einzelpreis,
+              gesamtpreis: item.menge * item.einzelpreis,
+            }));
+            setItems(prev => mergeItems(prev, newItems));
+            if (kundeData && !form.kunde_name) {
+              setForm(prev => ({ ...prev, kunde_name: kundeData.kunde_name }));
+            }
+            setImportRegieOpen(false);
+            toast({ title: "Aus Regiebericht importiert", description: `${newItems.length} Positionen hinzugefügt` });
           }}
         />
 

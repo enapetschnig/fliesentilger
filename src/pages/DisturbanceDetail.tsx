@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Zap, Calendar, Clock, User, Mail, Phone, MapPin, Edit, Trash2, Package, Plus, ArrowLeft, PenLine, Users } from "lucide-react";
+import { Zap, Calendar, Clock, User, Mail, Phone, MapPin, Edit, Trash2, Package, Plus, ArrowLeft, PenLine, Users, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -288,6 +288,17 @@ const DisturbanceDetail = () => {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {getStatusBadge(disturbance.status, disturbance.is_verrechnet)}
+            {isAdmin && disturbance.status !== "offen" && !disturbance.is_verrechnet && (
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-1"
+                onClick={() => navigate(`/invoices/new?typ=rechnung&disturbance_id=${disturbance.id}`)}
+              >
+                <Receipt className="h-4 w-4" />
+                Rechnung erstellen
+              </Button>
+            )}
             {isAdmin && disturbance.status !== "offen" && (
               <Button
                 variant={disturbance.is_verrechnet ? "secondary" : "outline"}
