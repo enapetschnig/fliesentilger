@@ -820,7 +820,7 @@ export default function InvoiceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-[1200px]">
+      <div className="container mx-auto px-4 py-8 max-w-[1600px]">
         <PageHeader
           title={isNew ? `Neue ${typLabel} erstellen` : `${typLabel} ${form.nummer}`}
           backPath="/invoices"

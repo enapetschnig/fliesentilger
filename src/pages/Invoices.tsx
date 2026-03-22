@@ -284,7 +284,7 @@ export default function Invoices() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-[1400px]">
+      <div className="container mx-auto px-4 py-8 max-w-[1600px]">
         <PageHeader title="Rechnungen & Angebote" backPath="/" />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
