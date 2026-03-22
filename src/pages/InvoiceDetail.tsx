@@ -20,7 +20,7 @@ import { ImportLieferscheinDialog } from "@/components/ImportLieferscheinDialog"
 import { ImportFromProjectDialog } from "@/components/ImportFromProjectDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { format, addMonths } from "date-fns";
+import { format, addMonths, parseISO } from "date-fns";
 import { PageHeader } from "@/components/PageHeader";
 import {
   AlertDialog,
@@ -154,6 +154,13 @@ export default function InvoiceDetail() {
   const [importOfferOpen, setImportOfferOpen] = useState(false);
   const [importTimeOpen, setImportTimeOpen] = useState(false);
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
+
+  // Payment tracking
+  interface Payment { id: string; betrag: number; datum: string; notizen: string | null; }
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [newPaymentAmount, setNewPaymentAmount] = useState("");
+  const [newPaymentDate, setNewPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [newPaymentNote, setNewPaymentNote] = useState("");
   const defaultTyp = searchParams.get("typ") || "rechnung";
 
   const [form, setForm] = useState<InvoiceData>({
@@ -192,6 +199,7 @@ export default function InvoiceDetail() {
     if (!isNew && id) {
       loadInvoice(id);
       loadStoredPdfs(id);
+      loadPayments(id);
     }
   }, [id]);
 
@@ -510,6 +518,62 @@ export default function InvoiceDetail() {
     }
   };
 
+  // Payment functions
+  const loadPayments = async (invId: string) => {
+    const { data } = await supabase
+      .from("invoice_payments")
+      .select("*")
+      .eq("invoice_id", invId)
+      .order("datum");
+    if (data) setPayments(data);
+  };
+
+  const addPayment = async () => {
+    if (!invoiceId) return;
+    const betrag = Number(newPaymentAmount) || restBetrag;
+    if (betrag <= 0) return;
+
+    const { error } = await supabase.from("invoice_payments").insert({
+      invoice_id: invoiceId,
+      betrag,
+      datum: newPaymentDate,
+      notizen: newPaymentNote.trim() || null,
+    });
+
+    if (error) {
+      toast({ variant: "destructive", title: "Fehler" });
+      return;
+    }
+
+    // Update bezahlt_betrag on invoice
+    const newTotal = form.bezahlt_betrag + betrag;
+    const newStatus = newTotal >= bruttoSumme ? "bezahlt" : "teilbezahlt";
+    await supabase.from("invoices").update({ bezahlt_betrag: newTotal, status: newStatus }).eq("id", invoiceId);
+    updateField("bezahlt_betrag", newTotal);
+    updateField("status", newStatus);
+
+    setNewPaymentAmount("");
+    setNewPaymentNote("");
+    setNewPaymentDate(format(new Date(), "yyyy-MM-dd"));
+    loadPayments(invoiceId);
+    toast({ title: "Zahlung erfasst", description: `€ ${betrag.toFixed(2)} am ${newPaymentDate}` });
+  };
+
+  const deletePayment = async (paymentId: string) => {
+    if (!invoiceId) return;
+    const payment = payments.find(p => p.id === paymentId);
+    if (!payment) return;
+
+    await supabase.from("invoice_payments").delete().eq("id", paymentId);
+    const newTotal = Math.max(0, form.bezahlt_betrag - Number(payment.betrag));
+    const newStatus = newTotal <= 0 ? "gesendet" : newTotal >= bruttoSumme ? "bezahlt" : "teilbezahlt";
+    await supabase.from("invoices").update({ bezahlt_betrag: newTotal, status: newStatus }).eq("id", invoiceId);
+    updateField("bezahlt_betrag", newTotal);
+    updateField("status", newStatus);
+    loadPayments(invoiceId);
+    toast({ title: "Zahlung gelöscht" });
+  };
+
   const handleDownloadPdf = async () => {
     if (!invoiceId) {
       toast({ variant: "destructive", title: "Fehler", description: "Bitte zuerst speichern" });
@@ -756,7 +820,7 @@ export default function InvoiceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-[1200px]">
         <PageHeader
           title={isNew ? `Neue ${typLabel} erstellen` : `${typLabel} ${form.nummer}`}
           backPath="/invoices"
@@ -882,35 +946,77 @@ export default function InvoiceDetail() {
             </Card>
           )}
 
-          {/* Teilzahlung */}
-          {!isNew && form.typ === "rechnung" && (form.status === "bezahlt" || form.status === "teilbezahlt") && (
+          {/* Zahlungsverlauf */}
+          {!isNew && form.typ === "rechnung" && form.status !== "entwurf" && form.status !== "storniert" && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Zahlungsstatus</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                  <div>
-                    <Label>Bezahlter Betrag (€)</Label>
-                    <Input
-                      type="number"
-                      value={form.bezahlt_betrag}
-                      onChange={(e) => updateField("bezahlt_betrag", Number(e.target.value))}
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-                  <div>
-                    <Label>Brutto gesamt</Label>
-                    <p className="text-lg font-medium mt-1">€ {bruttoSumme.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <Label>Restbetrag</Label>
-                    <p className={`text-lg font-bold mt-1 ${restBetrag > 0 ? "text-orange-600" : "text-green-600"}`}>
-                      € {restBetrag.toFixed(2)}
-                    </p>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-base">Zahlungsverlauf</CardTitle>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span>Brutto: <strong>€ {bruttoSumme.toFixed(2)}</strong></span>
+                    <span>Bezahlt: <strong className="text-green-600">€ {form.bezahlt_betrag.toFixed(2)}</strong></span>
+                    <span>Offen: <strong className={restBetrag > 0 ? "text-orange-600" : "text-green-600"}>€ {restBetrag.toFixed(2)}</strong></span>
                   </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                {/* Existing payments */}
+                {payments.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {payments.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-2 rounded-md border bg-muted/30">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-green-700">€ {Number(p.betrag).toFixed(2)}</span>
+                          <span className="text-sm text-muted-foreground">{format(parseISO(p.datum), "dd.MM.yyyy")}</span>
+                          {p.notizen && <span className="text-xs text-muted-foreground italic">{p.notizen}</span>}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => deletePayment(p.id)}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add payment form */}
+                {restBetrag > 0 && (
+                  <div className="flex items-end gap-3 pt-2 border-t">
+                    <div>
+                      <Label className="text-xs">Betrag €</Label>
+                      <Input
+                        type="number"
+                        value={newPaymentAmount}
+                        onChange={(e) => setNewPaymentAmount(e.target.value)}
+                        placeholder={restBetrag.toFixed(2)}
+                        min={0}
+                        step={0.01}
+                        className="w-32"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Datum</Label>
+                      <Input
+                        type="date"
+                        value={newPaymentDate}
+                        onChange={(e) => setNewPaymentDate(e.target.value)}
+                        className="w-40"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Notiz (optional)</Label>
+                      <Input
+                        value={newPaymentNote}
+                        onChange={(e) => setNewPaymentNote(e.target.value)}
+                        placeholder="z.B. Überweisung"
+                        className="w-40"
+                      />
+                    </div>
+                    <Button size="sm" onClick={addPayment} className="gap-1">
+                      <Plus className="w-3.5 h-3.5" />
+                      Zahlung
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
