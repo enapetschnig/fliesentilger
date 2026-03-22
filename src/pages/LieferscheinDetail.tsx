@@ -276,6 +276,7 @@ export default function LieferscheinDetail() {
                     <TableHead className="text-right">Entnommen</TableHead>
                     <TableHead className="text-right">Zurück</TableHead>
                     <TableHead className="text-right font-bold">Verbraucht</TableHead>
+                    <TableHead className="text-right w-[100px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -285,6 +286,28 @@ export default function LieferscheinDetail() {
                       <TableCell className="text-right text-red-600">{s.entnommen} {s.einheit}</TableCell>
                       <TableCell className="text-right text-green-600">{s.zurueck} {s.einheit}</TableCell>
                       <TableCell className="text-right font-bold">{s.verbraucht} {s.einheit}</TableCell>
+                      <TableCell className="text-right">
+                        {s.verbraucht > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                            onClick={() => {
+                              setFormTyp("rueckgabe");
+                              setFormMaterial(s.material);
+                              setFormMenge("");
+                              setFormEinheit(s.einheit);
+                              setFormNotizen("");
+                              setReturningEntry(null);
+                              setShowForm(true);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Zurück</span>
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
