@@ -1399,10 +1399,10 @@ export default function InvoiceDetail() {
         <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
           <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Position aus Vorlage einfügen</DialogTitle>
+              <DialogTitle>Material einfügen</DialogTitle>
             </DialogHeader>
             {Object.keys(groupedTemplates).length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Keine Vorlagen vorhanden</p>
+              <p className="text-muted-foreground text-center py-4">Keine Materialien vorhanden</p>
             ) : (
               Object.entries(groupedTemplates).sort(([a], [b]) => a.localeCompare(b)).map(([kategorie, tpls]) => (
                 <div key={kategorie} className="mb-4">
