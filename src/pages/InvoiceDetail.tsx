@@ -1139,10 +1139,12 @@ export default function InvoiceDetail() {
                   <Label>Datum</Label>
                   <Input type="date" value={form.datum} onChange={(e) => updateField("datum", e.target.value)} />
                 </div>
-                <div>
-                  <Label>Leistungsdatum</Label>
-                  <Input type="date" value={form.leistungsdatum} onChange={(e) => updateField("leistungsdatum", e.target.value)} />
-                </div>
+                {form.typ === "rechnung" && (
+                  <div>
+                    <Label>Leistungsdatum</Label>
+                    <Input type="date" value={form.leistungsdatum} onChange={(e) => updateField("leistungsdatum", e.target.value)} />
+                  </div>
+                )}
                 {form.typ === "rechnung" && (
                   <div>
                     <Label>Fällig am</Label>
@@ -1157,31 +1159,32 @@ export default function InvoiceDetail() {
                 )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Zahlbar bis</Label>
-                  <Select
-                    value={form.zahlungsbedingungen}
-                    onValueChange={(v) => {
-                      updateField("zahlungsbedingungen", v);
-                      // Auto-calculate faellig_am
-                      const days = v === "sofort" ? 0 : v === "7 Tage netto" ? 7 : v === "14 Tage netto" ? 14 : v === "30 Tage netto" ? 30 : v === "60 Tage netto" ? 60 : 14;
-                      if (form.datum) {
-                        const due = new Date(form.datum);
-                        due.setDate(due.getDate() + days);
-                        updateField("faellig_am", format(due, "yyyy-MM-dd"));
-                      }
-                    }}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sofort">Sofort fällig</SelectItem>
-                      <SelectItem value="7 Tage netto">7 Tage netto</SelectItem>
-                      <SelectItem value="14 Tage netto">14 Tage netto</SelectItem>
-                      <SelectItem value="30 Tage netto">30 Tage netto</SelectItem>
-                      <SelectItem value="60 Tage netto">60 Tage netto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {form.typ === "rechnung" && (
+                  <div>
+                    <Label>Zahlbar bis</Label>
+                    <Select
+                      value={form.zahlungsbedingungen}
+                      onValueChange={(v) => {
+                        updateField("zahlungsbedingungen", v);
+                        const days = v === "sofort" ? 0 : v === "7 Tage netto" ? 7 : v === "14 Tage netto" ? 14 : v === "30 Tage netto" ? 30 : v === "60 Tage netto" ? 60 : 14;
+                        if (form.datum) {
+                          const due = new Date(form.datum);
+                          due.setDate(due.getDate() + days);
+                          updateField("faellig_am", format(due, "yyyy-MM-dd"));
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sofort">Sofort fällig</SelectItem>
+                        <SelectItem value="7 Tage netto">7 Tage netto</SelectItem>
+                        <SelectItem value="14 Tage netto">14 Tage netto</SelectItem>
+                        <SelectItem value="30 Tage netto">30 Tage netto</SelectItem>
+                        <SelectItem value="60 Tage netto">60 Tage netto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label>Projekt (optional)</Label>
                   <Select value={form.project_id || "none"} onValueChange={(v) => updateField("project_id", v === "none" ? null : v)}>

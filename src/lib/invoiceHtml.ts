@@ -118,11 +118,11 @@ export function buildInvoiceHtml(
   metaParts.push(
     `<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`
   );
-  if (leistungFormatted)
+  if (!isAngebot && leistungFormatted)
     metaParts.push(
       `<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`
     );
-  if (faelligFormatted)
+  if (!isAngebot && faelligFormatted)
     metaParts.push(
       `<div><span class="meta-label">Fällig am</span><span class="meta-value">${faelligFormatted}</span></div>`
     );
@@ -130,7 +130,7 @@ export function buildInvoiceHtml(
     metaParts.push(
       `<div><span class="meta-label">Gültig bis</span><span class="meta-value">${gueltigBisFormatted}</span></div>`
     );
-  if (invoice.zahlungsbedingungen)
+  if (!isAngebot && invoice.zahlungsbedingungen)
     metaParts.push(
       `<div><span class="meta-label">Zahlung</span><span class="meta-value">${invoice.zahlungsbedingungen}</span></div>`
     );

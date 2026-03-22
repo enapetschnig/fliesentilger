@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -87,6 +87,8 @@ export type Database = {
         Row: {
           created_at: string
           disturbance_id: string
+          einheit: string | null
+          einzelpreis: number | null
           id: string
           material: string
           menge: string | null
@@ -97,6 +99,8 @@ export type Database = {
         Insert: {
           created_at?: string
           disturbance_id: string
+          einheit?: string | null
+          einzelpreis?: number | null
           id?: string
           material: string
           menge?: string | null
@@ -107,6 +111,8 @@ export type Database = {
         Update: {
           created_at?: string
           disturbance_id?: string
+          einheit?: string | null
+          einzelpreis?: number | null
           id?: string
           material?: string
           menge?: string | null
@@ -453,6 +459,41 @@ export type Database = {
           },
         ]
       }
+      invoice_payments: {
+        Row: {
+          betrag: number
+          created_at: string | null
+          datum: string
+          id: string
+          invoice_id: string
+          notizen: string | null
+        }
+        Insert: {
+          betrag: number
+          created_at?: string | null
+          datum?: string
+          id?: string
+          invoice_id: string
+          notizen?: string | null
+        }
+        Update: {
+          betrag?: number
+          created_at?: string | null
+          datum?: string
+          id?: string
+          invoice_id?: string
+          notizen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_templates: {
         Row: {
           artikelnummer: string | null
@@ -491,6 +532,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          archiviert: boolean | null
           bezahlt_betrag: number | null
           brutto_summe: number
           created_at: string
@@ -526,6 +568,7 @@ export type Database = {
           zahlungsbedingungen: string | null
         }
         Insert: {
+          archiviert?: boolean | null
           bezahlt_betrag?: number | null
           brutto_summe?: number
           created_at?: string
@@ -561,6 +604,7 @@ export type Database = {
           zahlungsbedingungen?: string | null
         }
         Update: {
+          archiviert?: boolean | null
           bezahlt_betrag?: number | null
           brutto_summe?: number
           created_at?: string
@@ -687,38 +731,111 @@ export type Database = {
         }
         Relationships: []
       }
+      lieferscheine: {
+        Row: {
+          created_at: string | null
+          datum: string | null
+          id: string
+          name: string | null
+          notizen: string | null
+          project_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          datum?: string | null
+          id?: string
+          name?: string | null
+          notizen?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          datum?: string | null
+          id?: string
+          name?: string | null
+          notizen?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lieferscheine_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       material_entries: {
         Row: {
           created_at: string
+          datum: string | null
+          disturbance_id: string | null
+          einheit: string | null
+          einzelpreis: number | null
           id: string
+          lieferschein_id: string | null
           material: string
           menge: string | null
           notizen: string | null
-          project_id: string
+          project_id: string | null
+          typ: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          datum?: string | null
+          disturbance_id?: string | null
+          einheit?: string | null
+          einzelpreis?: number | null
           id?: string
+          lieferschein_id?: string | null
           material: string
           menge?: string | null
           notizen?: string | null
-          project_id: string
+          project_id?: string | null
+          typ?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          datum?: string | null
+          disturbance_id?: string | null
+          einheit?: string | null
+          einzelpreis?: number | null
           id?: string
+          lieferschein_id?: string | null
           material?: string
           menge?: string | null
           notizen?: string | null
-          project_id?: string
+          project_id?: string | null
+          typ?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "material_entries_disturbance_id_fkey"
+            columns: ["disturbance_id"]
+            isOneToOne: false
+            referencedRelation: "disturbances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_entries_lieferschein_id_fkey"
+            columns: ["lieferschein_id"]
+            isOneToOne: false
+            referencedRelation: "lieferscheine"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "material_entries_project_id_fkey"
             columns: ["project_id"]
@@ -841,6 +958,7 @@ export type Database = {
           adresse: string | null
           beschreibung: string | null
           created_at: string
+          customer_id: string | null
           id: string
           name: string
           plz: string
@@ -851,6 +969,7 @@ export type Database = {
           adresse?: string | null
           beschreibung?: string | null
           created_at?: string
+          customer_id?: string | null
           id?: string
           name: string
           plz: string
@@ -861,13 +980,22 @@ export type Database = {
           adresse?: string | null
           beschreibung?: string | null
           created_at?: string
+          customer_id?: string | null
           id?: string
           name?: string
           plz?: string
           status?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
@@ -1166,6 +1294,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_user: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: Json
+      }
       ensure_user_profile: { Args: never; Returns: Json }
       has_role: {
         Args: {
@@ -1174,6 +1309,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_active_user: { Args: { _user_id: string }; Returns: boolean }
       next_invoice_number: {
         Args: { p_jahr?: number; p_typ: string }
         Returns: string

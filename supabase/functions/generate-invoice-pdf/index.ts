@@ -63,10 +63,10 @@ function buildHtml(invoice: any, items: any[]): string {
   const metaParts: string[] = [];
   metaParts.push(`<div><span class="meta-label">${typLabel} Nr.</span><span class="meta-value">${invoice.nummer}</span></div>`);
   metaParts.push(`<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`);
-  if (leistungFormatted) metaParts.push(`<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`);
-  if (faelligFormatted) metaParts.push(`<div><span class="meta-label">Fällig am</span><span class="meta-value">${faelligFormatted}</span></div>`);
+  if (!isAngebot && leistungFormatted) metaParts.push(`<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`);
+  if (!isAngebot && faelligFormatted) metaParts.push(`<div><span class="meta-label">Fällig am</span><span class="meta-value">${faelligFormatted}</span></div>`);
   if (gueltigBisFormatted) metaParts.push(`<div><span class="meta-label">Gültig bis</span><span class="meta-value">${gueltigBisFormatted}</span></div>`);
-  if (invoice.zahlungsbedingungen) metaParts.push(`<div><span class="meta-label">Zahlung</span><span class="meta-value">${invoice.zahlungsbedingungen}</span></div>`);
+  if (!isAngebot && invoice.zahlungsbedingungen) metaParts.push(`<div><span class="meta-label">Zahlung</span><span class="meta-value">${invoice.zahlungsbedingungen}</span></div>`);
 
   const mahnBanner = mahnstufe > 0 ? `
     <div style="background:#fef2f2;border:2px solid #CC0000;border-radius:6px;padding:12px 20px;margin-bottom:20px;text-align:center;font-weight:800;color:#CC0000;font-size:12pt;letter-spacing:1px;">
