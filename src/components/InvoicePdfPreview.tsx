@@ -92,19 +92,31 @@ export function InvoicePdfPreview({
         <DialogTitle className="sr-only">Dokumentvorschau</DialogTitle>
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex gap-2">
-            {onSave && (
+            {onSave && !saved && (
               <Button size="sm" onClick={onSave} disabled={saving} className="gap-2 bg-green-600 hover:bg-green-700">
                 <Save className="h-4 w-4" />
                 {saving ? "Speichert..." : "Speichern"}
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handlePrint} disabled={!saved && !!onSave}>
-              <Download className="h-4 w-4 mr-2" />
-              {!saved && onSave ? "Zuerst speichern" : "PDF / Drucken"}
-            </Button>
+            {saved ? (
+              <Button size="sm" onClick={handlePrint} className="gap-2">
+                <Download className="h-4 w-4" />
+                PDF herunterladen
+              </Button>
+            ) : onSave ? (
+              <Button variant="outline" size="sm" disabled className="gap-2">
+                <Download className="h-4 w-4" />
+                Zuerst speichern
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handlePrint} className="gap-2">
+                <Download className="h-4 w-4" />
+                PDF herunterladen
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={onClose}>
               <X className="h-4 w-4 mr-2" />
-              Schliessen
+              Schließen
             </Button>
           </div>
         </div>

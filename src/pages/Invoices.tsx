@@ -261,8 +261,7 @@ export default function Invoices() {
   const filtered = invoices.filter(i => {
     const matchTyp = filterTyp === "alle" || i.typ === filterTyp;
     const matchStatus = filterStatus === "alle" || i.status === filterStatus;
-    const matchArchive = showArchive ? i.archiviert : !i.archiviert;
-    return matchTyp && matchStatus && matchArchive;
+    return matchTyp && matchStatus;
   });
 
   const totalRechnungen = invoices.filter(i => i.typ === "rechnung").length;
@@ -357,22 +356,14 @@ export default function Invoices() {
                   <FileDown className="w-4 h-4" />
                   Export
                 </Button>
-                <Button onClick={() => setShowArchive(!showArchive)} variant={showArchive ? "secondary" : "outline"} size="sm" className="gap-1">
-                  <Archive className="w-4 h-4" />
-                  {showArchive ? "Aktive" : "Archiv"}
+                <Button onClick={() => navigate("/invoices/new?typ=angebot")} variant="outline" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Neues Angebot
                 </Button>
-                {!showArchive && (
-                  <>
-                    <Button onClick={() => navigate("/invoices/new?typ=angebot")} variant="outline" className="gap-2">
-                      <FileText className="w-4 h-4" />
-                      Neues Angebot
-                    </Button>
-                    <Button onClick={() => navigate("/invoices/new?typ=rechnung")} variant="default" className="gap-2">
-                      <Receipt className="w-4 h-4" />
-                      Neue Rechnung
-                    </Button>
-                  </>
-                )}
+                <Button onClick={() => navigate("/invoices/new?typ=rechnung")} variant="default" className="gap-2">
+                  <Receipt className="w-4 h-4" />
+                  Neue Rechnung
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -484,33 +475,17 @@ export default function Invoices() {
                             </div>
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-0.5">
-                              {inv.status !== "entwurf" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
-                                  disabled={downloadingId === inv.id}
-                                  title="PDF öffnen"
-                                >
-                                  <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
-                                </Button>
-                              )}
-                              {!inv.archiviert ? (
-                                <Button variant="ghost" size="sm" onClick={(e) => handleArchive(inv.id, true, e)} title="Archivieren">
-                                  <Archive className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              ) : (
-                                <>
-                                  <Button variant="ghost" size="sm" onClick={(e) => handleArchive(inv.id, false, e)} title="Wiederherstellen">
-                                    <ArchiveRestore className="h-4 w-4 text-blue-600" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={(e) => handleDelete(inv.id, e)} title="Endgültig löschen">
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
+                            {inv.status !== "entwurf" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
+                                disabled={downloadingId === inv.id}
+                                title="PDF herunterladen"
+                              >
+                                <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );

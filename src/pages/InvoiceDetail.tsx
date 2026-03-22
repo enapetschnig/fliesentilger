@@ -392,8 +392,13 @@ export default function InvoiceDetail() {
         fetchCustomers();
       }
 
+      // Auto-set status from "entwurf" to "offen"/"gesendet" on save
+      const saveStatus = form.status === "entwurf"
+        ? (form.typ === "angebot" ? "gesendet" : "gesendet")
+        : form.status;
+
       const invoicePayload = {
-        status: form.status,
+        status: saveStatus,
         kunde_name: form.kunde_name,
         kunde_adresse: form.kunde_adresse || null,
         kunde_plz: form.kunde_plz || null,
@@ -470,6 +475,11 @@ export default function InvoiceDetail() {
 
       const { error: itemsError } = await supabase.from("invoice_items").insert(itemsToInsert);
       if (itemsError) throw itemsError;
+
+      // Update form status to reflect saved state
+      if (form.status === "entwurf") {
+        updateField("status", saveStatus);
+      }
 
       toast({ title: "Gespeichert", description: `${form.typ === "rechnung" ? "Rechnung" : "Angebot"} wurde gespeichert` });
 
