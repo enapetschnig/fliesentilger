@@ -1435,6 +1435,7 @@ export default function InvoiceDetail() {
           onSave={handleSaveFromPreview}
           saving={saving}
           saved={previewSaved}
+          fileName={form.nummer || (form.typ === "angebot" ? "Angebot" : "Rechnung")}
           formData={{
             typ: form.typ,
             nummer: form.nummer,

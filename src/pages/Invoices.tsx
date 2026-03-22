@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { FileText, Receipt, AlertTriangle, Download, Archive, ArchiveRestore, Trash2, FileDown } from "lucide-react";
+import { FileText, Receipt, AlertTriangle, Download, Archive, ArchiveRestore, Trash2, FileDown, Printer } from "lucide-react";
 import { format, parseISO, isBefore } from "date-fns";
 import { de } from "date-fns/locale";
 import { PageHeader } from "@/components/PageHeader";
@@ -154,17 +154,53 @@ export default function Invoices() {
       });
       if (error) throw error;
       const html = decodeURIComponent(escape(atob(data.pdf)));
-      const win = window.open("", "_blank");
-      if (win) {
-        win.document.write(html);
-        win.document.close();
-        // Auto-trigger print/save dialog
-        setTimeout(() => win.print(), 500);
+
+      // Generate real PDF using html2pdf.js
+      const html2pdf = (await import("html2pdf.js")).default;
+      const container = document.createElement("div");
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      container.innerHTML = bodyMatch ? bodyMatch[1] : html;
+      const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+      if (styleMatch) {
+        const style = document.createElement("style");
+        style.textContent = styleMatch[1];
+        container.prepend(style);
       }
+      container.style.width = "210mm";
+      document.body.appendChild(container);
+
+      await html2pdf().set({
+        margin: 0,
+        filename: `${nummer}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      }).from(container).save();
+
+      document.body.removeChild(container);
     } catch {
       toast({ variant: "destructive", title: "Fehler", description: "PDF konnte nicht erstellt werden" });
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handlePrintPdf = async (invoiceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-invoice-pdf", {
+        body: { invoiceId },
+      });
+      if (error) throw error;
+      const html = decodeURIComponent(escape(atob(data.pdf)));
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+        setTimeout(() => win.print(), 500);
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Fehler", description: "Drucken fehlgeschlagen" });
     }
   };
 
@@ -477,15 +513,25 @@ export default function Invoices() {
                             </div>
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
-                              disabled={downloadingId === inv.id}
-                              title="PDF herunterladen"
-                            >
-                              <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
-                            </Button>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
+                                disabled={downloadingId === inv.id}
+                                title="PDF herunterladen"
+                              >
+                                <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handlePrintPdf(inv.id, e)}
+                                title="Drucken"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

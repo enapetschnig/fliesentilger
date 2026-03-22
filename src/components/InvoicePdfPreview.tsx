@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X, Save } from "lucide-react";
+import { Download, X, Save, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import {
@@ -16,10 +16,10 @@ interface InvoicePdfPreviewProps {
   onSave?: () => Promise<void> | void;
   saving?: boolean;
   saved?: boolean;
-  // Either pass invoiceId to load from DB, or pass formData + items for client-side preview
   invoiceId?: string;
   formData?: InvoiceHtmlData;
   items?: InvoiceHtmlItem[];
+  fileName?: string;
 }
 
 export function InvoicePdfPreview({
@@ -31,12 +31,13 @@ export function InvoicePdfPreview({
   invoiceId,
   formData,
   items,
+  fileName,
 }: InvoicePdfPreviewProps) {
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Store refs to avoid dependency issues with inline objects
   const formDataRef = useRef(formData);
   const itemsRef = useRef(items);
   formDataRef.current = formData;
@@ -48,27 +49,21 @@ export function InvoicePdfPreview({
       return;
     }
 
-    // Client-side preview from form data (works before saving)
     if (formDataRef.current && itemsRef.current) {
       const html = buildInvoiceHtml(formDataRef.current, itemsRef.current);
       setHtmlContent(html);
       return;
     }
 
-    // Server-side preview from saved invoice
     if (invoiceId) {
       const fetchPdf = async () => {
         setLoading(true);
         try {
           const { data, error } = await supabase.functions.invoke(
             "generate-invoice-pdf",
-            {
-              body: { invoiceId },
-            }
+            { body: { invoiceId } }
           );
-
           if (error) throw error;
-
           const decoded = decodeURIComponent(escape(atob(data.pdf)));
           setHtmlContent(decoded);
         } catch (err) {
@@ -77,7 +72,6 @@ export function InvoicePdfPreview({
           setLoading(false);
         }
       };
-
       fetchPdf();
     }
   }, [open, invoiceId]);
@@ -88,17 +82,53 @@ export function InvoicePdfPreview({
     }
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!htmlContent) return;
-    // Open in new window with print dialog for "Save as PDF"
-    const win = window.open("", "_blank");
-    if (win) {
-      win.document.write(htmlContent);
-      win.document.close();
-      // Auto-trigger print dialog after a short delay
-      setTimeout(() => win.print(), 500);
+    setDownloading(true);
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      // Create a temporary container with the HTML content
+      const container = document.createElement("div");
+      container.innerHTML = htmlContent;
+      // Extract the body content
+      const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch) {
+        container.innerHTML = bodyMatch[1];
+      }
+      // Apply styles from the HTML
+      const styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+      if (styleMatch) {
+        const style = document.createElement("style");
+        style.textContent = styleMatch[1];
+        container.prepend(style);
+      }
+      container.style.width = "210mm";
+      document.body.appendChild(container);
+
+      const pdfFileName = fileName || "Dokument";
+      await html2pdf().set({
+        margin: 0,
+        filename: `${pdfFileName}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      }).from(container).save();
+
+      document.body.removeChild(container);
+    } catch (err) {
+      console.error("PDF download error:", err);
+      // Fallback: open in new window for manual save
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(htmlContent);
+        win.document.close();
+      }
+    } finally {
+      setDownloading(false);
     }
   };
+
+  const canDownload = saved || !onSave;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -112,11 +142,16 @@ export function InvoicePdfPreview({
                 {saving ? "Speichert..." : "Speichern"}
               </Button>
             )}
-            {saved || !onSave ? (
-              <Button size="sm" onClick={handleDownloadPdf} disabled={!htmlContent} className="gap-2">
-                <Download className="h-4 w-4" />
-                PDF herunterladen
-              </Button>
+            {canDownload ? (
+              <>
+                <Button size="sm" onClick={handleDownloadPdf} disabled={!htmlContent || downloading} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  {downloading ? "Wird erstellt..." : "PDF herunterladen"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handlePrint} disabled={!htmlContent}>
+                  <Printer className="h-4 w-4" />
+                </Button>
+              </>
             ) : (
               <Button variant="outline" size="sm" disabled className="gap-2">
                 <Download className="h-4 w-4" />
