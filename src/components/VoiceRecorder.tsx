@@ -141,11 +141,27 @@ export function VoiceRecorder({ typ, existingItems, onAccept, onCancel }: VoiceR
 
       {/* Info */}
       {state === "idle" && (
-        <div className="text-xs text-muted-foreground bg-muted/50 rounded p-3">
-          {typ === "entnahme" ? (
-            <>Drücke auf Aufnehmen und sag z.B.: <strong>"Ich habe 40 Quadratmeter Fliesen 60x60 und 5 Sack Fliesenkleber mitgenommen"</strong></>
-          ) : (
-            <>Drücke auf Aufnehmen und sag z.B.: <strong>"Von Position 1 gebe ich 10 Stück zurück"</strong> oder <strong>"Ich bringe 5 Quadratmeter Fliesen zurück"</strong></>
+        <div className="space-y-2">
+          <div className="text-xs text-muted-foreground bg-muted/50 rounded p-3">
+            {typ === "entnahme" ? (
+              <>Drücke auf Aufnehmen und sag z.B.: <strong>"Ich habe 40 Quadratmeter Fliesen 60x60 und 5 Sack Fliesenkleber mitgenommen"</strong></>
+            ) : (
+              <>Drücke auf Aufnehmen und sag z.B.: <strong>"Position 1, davon gebe ich 10 Stück zurück"</strong> oder <strong>"Ich bringe 5 Quadratmeter Fliesen zurück"</strong></>
+            )}
+          </div>
+
+          {/* Show existing positions for return reference */}
+          {typ === "rueckgabe" && existingItems && existingItems.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded p-3 space-y-1">
+              <p className="text-xs font-medium text-green-800">Entnommene Positionen:</p>
+              {existingItems.map((item) => (
+                <div key={item.position} className="text-xs text-green-700 flex gap-2">
+                  <span className="font-bold min-w-[50px]">Pos {item.position}:</span>
+                  <span>{item.material}</span>
+                  <span className="text-green-500">({item.menge} {item.einheit})</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

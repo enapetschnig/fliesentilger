@@ -190,77 +190,41 @@ export default function LieferscheinDetail() {
         </div>
 
         {/* Buttons */}
-        {!showForm && !voiceTyp && (
+        {!showForm && (
           <div className="flex gap-2 flex-wrap">
             <Button onClick={() => openForm("entnahme")} className="gap-2 bg-orange-600 hover:bg-orange-700">
               <ArrowUp className="h-4 w-4" />
               Material entnehmen
             </Button>
-            <Button onClick={() => setVoiceTyp("entnahme")} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50">
-              <Mic className="h-4 w-4" />
-              Per Sprache entnehmen
-            </Button>
             <Button onClick={() => openForm("rueckgabe")} variant="outline" className="gap-2">
               <ArrowDown className="h-4 w-4" />
               Material zurückbringen
             </Button>
-            <Button onClick={() => setVoiceTyp("rueckgabe")} variant="outline" className="gap-2 border-green-300 text-green-700 hover:bg-green-50">
-              <Mic className="h-4 w-4" />
-              Per Sprache zurückgeben
-            </Button>
           </div>
         )}
 
-        {/* Voice Recorder */}
-        {voiceTyp && (
-          <VoiceRecorder
-            typ={voiceTyp}
-            existingItems={entries
-              .filter(e => e.typ === "entnahme")
-              .map((e, idx) => ({
-                position: idx + 1,
-                material: e.material,
-                menge: e.menge || "0",
-                einheit: e.einheit || "Stk.",
-              }))}
-            onAccept={async (voiceItems) => {
-              if (!currentUserId || !id) return;
-              for (const item of voiceItems) {
-                await supabase.from("material_entries").insert({
-                  lieferschein_id: id,
-                  project_id: null,
-                  user_id: currentUserId,
-                  material: item.material,
-                  menge: String(item.menge),
-                  einheit: item.einheit,
-                  einzelpreis: 0,
-                  typ: voiceTyp,
-                  notizen: null,
-                  datum: new Date().toISOString().split("T")[0],
-                });
-              }
-              toast({
-                title: voiceTyp === "entnahme" ? "Material entnommen" : "Material zurückgebucht",
-                description: `${voiceItems.length} Positionen per Sprache erfasst`,
-              });
-              setVoiceTyp(null);
-              fetchData();
-            }}
-            onCancel={() => setVoiceTyp(null)}
-          />
-        )}
-
         {/* Form */}
-        {showForm && (
+        {showForm && !voiceTyp && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                {formTyp === "entnahme" ? (
-                  <><ArrowUp className="h-5 w-5 text-red-500" /> Material entnehmen</>
-                ) : (
-                  <><ArrowDown className="h-5 w-5 text-green-500" /> Material zurückbringen</>
-                )}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  {formTyp === "entnahme" ? (
+                    <><ArrowUp className="h-5 w-5 text-red-500" /> Material entnehmen</>
+                  ) : (
+                    <><ArrowDown className="h-5 w-5 text-green-500" /> Material zurückbringen</>
+                  )}
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVoiceTyp(formTyp as "entnahme" | "rueckgabe")}
+                  className="gap-1.5"
+                >
+                  <Mic className="h-4 w-4" />
+                  Per Sprache
+                </Button>
+              </div>
               {returningEntry && (
                 <CardDescription>Vorausgefüllt — Menge anpassen falls nötig</CardDescription>
               )}
@@ -305,6 +269,44 @@ export default function LieferscheinDetail() {
               </form>
             </CardContent>
           </Card>
+        )}
+
+        {/* Voice Recorder (inside form context) */}
+        {voiceTyp && (
+          <VoiceRecorder
+            typ={voiceTyp}
+            existingItems={summary.map((s, idx) => ({
+              position: idx + 1,
+              material: s.material,
+              menge: String(s.verbraucht),
+              einheit: s.einheit,
+            }))}
+            onAccept={async (voiceItems) => {
+              if (!currentUserId || !id) return;
+              for (const item of voiceItems) {
+                await supabase.from("material_entries").insert({
+                  lieferschein_id: id,
+                  project_id: null,
+                  user_id: currentUserId,
+                  material: item.material,
+                  menge: String(item.menge),
+                  einheit: item.einheit,
+                  einzelpreis: 0,
+                  typ: voiceTyp,
+                  notizen: null,
+                  datum: new Date().toISOString().split("T")[0],
+                });
+              }
+              toast({
+                title: voiceTyp === "entnahme" ? "Material entnommen" : "Material zurückgebucht",
+                description: `${voiceItems.length} Positionen per Sprache erfasst`,
+              });
+              setVoiceTyp(null);
+              setShowForm(false);
+              fetchData();
+            }}
+            onCancel={() => setVoiceTyp(null)}
+          />
         )}
 
         {/* Verbrauchsübersicht */}
