@@ -83,7 +83,21 @@ export function InvoicePdfPreview({
   }, [open, invoiceId]);
 
   const handlePrint = () => {
-    iframeRef.current?.contentWindow?.print();
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.print();
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!htmlContent) return;
+    // Open in new window with print dialog for "Save as PDF"
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(htmlContent);
+      win.document.close();
+      // Auto-trigger print dialog after a short delay
+      setTimeout(() => win.print(), 500);
+    }
   };
 
   return (
@@ -98,20 +112,15 @@ export function InvoicePdfPreview({
                 {saving ? "Speichert..." : "Speichern"}
               </Button>
             )}
-            {saved ? (
-              <Button size="sm" onClick={handlePrint} className="gap-2">
+            {saved || !onSave ? (
+              <Button size="sm" onClick={handleDownloadPdf} disabled={!htmlContent} className="gap-2">
                 <Download className="h-4 w-4" />
                 PDF herunterladen
               </Button>
-            ) : onSave ? (
+            ) : (
               <Button variant="outline" size="sm" disabled className="gap-2">
                 <Download className="h-4 w-4" />
                 Zuerst speichern
-              </Button>
-            ) : (
-              <Button size="sm" onClick={handlePrint} className="gap-2">
-                <Download className="h-4 w-4" />
-                PDF herunterladen
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={onClose}>

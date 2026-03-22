@@ -158,6 +158,8 @@ export default function Invoices() {
       if (win) {
         win.document.write(html);
         win.document.close();
+        // Auto-trigger print/save dialog
+        setTimeout(() => win.print(), 500);
       }
     } catch {
       toast({ variant: "destructive", title: "Fehler", description: "PDF konnte nicht erstellt werden" });
@@ -475,17 +477,15 @@ export default function Invoices() {
                             </div>
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
-                            {inv.status !== "entwurf" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
-                                disabled={downloadingId === inv.id}
-                                title="PDF herunterladen"
-                              >
-                                <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
+                              disabled={downloadingId === inv.id}
+                              title="PDF herunterladen"
+                            >
+                              <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
