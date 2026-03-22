@@ -1369,35 +1369,42 @@ export default function Admin() {
       </AlertDialog>
 
       {/* ===== URLAUBSVERWALTUNG ===== */}
-      <section className="mt-8">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Calendar className="h-6 w-6" />
-          Urlaubsverwaltung
-        </h2>
-        <LeaveManagement profiles={profiles.filter(p => p.is_active)} />
-      </section>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Urlaubsverwaltung
+          </CardTitle>
+          <CardDescription>Urlaubsanträge, Kontingente und Genehmigungen</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LeaveManagement profiles={profiles.filter(p => p.is_active)} />
+        </CardContent>
+      </Card>
 
       {/* ===== ZEITKONTO ===== */}
-      <section className="mt-8">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Clock className="h-6 w-6" />
-          Zeitkonten & Zeitausgleich
-        </h2>
-        <TimeAccountManagement profiles={profiles.filter(p => p.is_active)} />
-      </section>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Zeitkonten & Zeitausgleich
+          </CardTitle>
+          <CardDescription>Überstunden und Zeitausgleich der Mitarbeiter</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TimeAccountManagement profiles={profiles.filter(p => p.is_active)} />
+        </CardContent>
+      </Card>
 
       {/* ===== EINSTELLUNGEN SEKTION ===== */}
-      <section className="mt-8">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Settings className="h-6 w-6" />
-          Einstellungen
-        </h2>
-        
-        <Card>
+      <Card className="mt-6">
           <CardHeader>
-            <CardTitle>E-Mail-Einstellungen</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Einstellungen
+            </CardTitle>
             <CardDescription>
-              Konfigurieren Sie die E-Mail-Adressen für automatische Benachrichtigungen
+              E-Mail-Adressen für automatische Benachrichtigungen
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1427,7 +1434,6 @@ export default function Admin() {
             </div>
           </CardContent>
         </Card>
-      </section>
     </div>
   );
 }
