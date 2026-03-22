@@ -145,20 +145,10 @@ function buildHtml(invoice: any, items: any[]): string {
   /* Storniert watermark */
   .storniert::after { content: 'STORNIERT'; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 72pt; color: rgba(204,0,0,0.08); font-weight: 900; pointer-events: none; letter-spacing: 8px; }
 
-  /* Print bar */
-  .print-bar { position: fixed; top: 0; left: 0; right: 0; background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 24px; display: flex; gap: 12px; align-items: center; z-index: 999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-  .print-bar button { padding: 8px 24px; border: none; border-radius: 6px; font-size: 10pt; font-weight: 700; cursor: pointer; }
-  .btn-print { background: #1a1a1a; color: #fff; }
-  .btn-print:hover { background: #333; }
-  body.has-bar { padding-top: 56px; }
+  @media print { body { padding-top: 0 !important; } }
 </style>
 </head>
-<body class="${invoice.status === 'storniert' ? 'storniert' : ''} has-bar">
-
-<div class="print-bar no-print">
-  <button class="btn-print" onclick="window.print()">Als PDF speichern / Drucken</button>
-  <span style="color:#888;font-size:9pt;">Tipp: Im Druckdialog "Als PDF speichern" wählen</span>
-</div>
+<body class="${invoice.status === 'storniert' ? 'storniert' : ''}">
 
 ${mahnBanner}
 

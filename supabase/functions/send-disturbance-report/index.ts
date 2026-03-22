@@ -470,6 +470,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const emailResponse = await resend.emails.send({
       from: fromAddress,
+      reply_to: officeEmail,
       to: recipients,
       subject: subject,
       html: emailHtml,
