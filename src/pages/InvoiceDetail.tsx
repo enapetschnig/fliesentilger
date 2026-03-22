@@ -1124,10 +1124,10 @@ export default function InvoiceDetail() {
                     <TableRow>
                       <TableHead className="w-12">Pos.</TableHead>
                       <TableHead>Beschreibung</TableHead>
-                      <TableHead className="w-20">Menge</TableHead>
-                      <TableHead className="w-20">Einheit</TableHead>
-                      <TableHead className="w-28">Einzelpreis</TableHead>
-                      <TableHead className="w-28 text-right">Gesamt</TableHead>
+                      <TableHead className="w-28">Menge</TableHead>
+                      <TableHead className="w-24">Einheit</TableHead>
+                      <TableHead className="w-32">Einzelpreis €</TableHead>
+                      <TableHead className="w-28 text-right">Gesamt €</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1143,7 +1143,7 @@ export default function InvoiceDetail() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" value={item.menge} onChange={(e) => updateItem(idx, "menge", Number(e.target.value))} min={0} step={0.01} />
+                          <Input type="number" value={item.menge} onChange={(e) => updateItem(idx, "menge", Number(e.target.value))} min={0} step={0.01} className="text-right" />
                         </TableCell>
                         <TableCell>
                           <Select value={item.einheit || "Stk."} onValueChange={(v) => updateItem(idx, "einheit", v)}>
@@ -1162,7 +1162,7 @@ export default function InvoiceDetail() {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <Input type="number" value={item.einzelpreis} onChange={(e) => updateItem(idx, "einzelpreis", Number(e.target.value))} min={0} step={0.01} />
+                          <Input type="number" value={item.einzelpreis} onChange={(e) => updateItem(idx, "einzelpreis", Number(e.target.value))} min={0} step={0.01} className="text-right" />
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           € {item.gesamtpreis.toFixed(2)}

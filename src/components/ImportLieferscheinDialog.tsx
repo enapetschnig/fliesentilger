@@ -161,18 +161,23 @@ export function ImportLieferscheinDialog({ open, onClose, projectId, onImport }:
                         <Badge variant="outline" className="ml-2 text-xs">{m.lieferscheinName}</Badge>
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        value={m.einzelpreis}
-                        onChange={(e) => updatePrice(idx, Number(e.target.value))}
-                        className="w-20 text-right"
-                        min={0}
-                        step={0.01}
-                        placeholder="Preis"
-                      />
-                      <span className="text-xs text-muted-foreground">€</span>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="text-[10px] text-muted-foreground">€ pro {m.einheit}</span>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={m.einzelpreis}
+                          onChange={(e) => updatePrice(idx, Number(e.target.value))}
+                          className="w-24 text-right"
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
+                    <p className="text-sm font-medium w-24 text-right">
+                      € {(m.verbraucht * m.einzelpreis).toFixed(2)}
+                    </p>
                   </div>
                 </div>
               ))}
