@@ -46,7 +46,7 @@ export default function InvoiceTemplates() {
       .select("*")
       .order("kategorie, name");
     if (error) {
-      toast({ variant: "destructive", title: "Fehler", description: "Vorlagen konnten nicht geladen werden" });
+      toast({ variant: "destructive", title: "Fehler", description: "Materialien konnten nicht geladen werden" });
     } else {
       setTemplates((data || []).map(t => ({ ...t, einzelpreis: Number(t.einzelpreis), artikelnummer: (t as any).artikelnummer || null })));
     }
@@ -158,7 +158,7 @@ export default function InvoiceTemplates() {
           </div>
           <Button onClick={openNew} className="gap-2">
             <Plus className="w-4 h-4" />
-            Neue Vorlage
+            Neues Material
           </Button>
         </div>
 
@@ -168,9 +168,9 @@ export default function InvoiceTemplates() {
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>{search || filterKategorie !== "alle" ? "Keine Vorlagen gefunden" : "Noch keine Positionsvorlagen erstellt"}</p>
+              <p>{search || filterKategorie !== "alle" ? "Keine Materialien gefunden" : "Noch keine Materialien angelegt"}</p>
               {!search && filterKategorie === "alle" && (
-                <Button className="mt-4" onClick={openNew}>Erste Vorlage erstellen</Button>
+                <Button className="mt-4" onClick={openNew}>Erstes Material anlegen</Button>
               )}
             </CardContent>
           </Card>
@@ -238,7 +238,7 @@ export default function InvoiceTemplates() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editId ? "Vorlage bearbeiten" : "Neue Vorlage"}</DialogTitle>
+              <DialogTitle>{editId ? "Material bearbeiten" : "Neues Material"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

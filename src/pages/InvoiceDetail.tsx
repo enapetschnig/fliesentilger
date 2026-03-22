@@ -17,6 +17,7 @@ import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
 import { ImportFromOfferDialog } from "@/components/ImportFromOfferDialog";
 import { ImportTimeDialog } from "@/components/ImportTimeDialog";
 import { ImportLieferscheinDialog } from "@/components/ImportLieferscheinDialog";
+import { ImportFromProjectDialog } from "@/components/ImportFromProjectDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { format, addMonths } from "date-fns";
@@ -148,6 +149,7 @@ export default function InvoiceDetail() {
   const [previewSaved, setPreviewSaved] = useState(false);
   const [importMaterialsOpen, setImportMaterialsOpen] = useState(false);
   const [importLieferscheinOpen, setImportLieferscheinOpen] = useState(false);
+  const [importProjectOpen, setImportProjectOpen] = useState(false);
   const [importDisturbanceOpen, setImportDisturbanceOpen] = useState(false);
   const [importOfferOpen, setImportOfferOpen] = useState(false);
   const [importTimeOpen, setImportTimeOpen] = useState(false);
@@ -1098,17 +1100,13 @@ export default function InvoiceDetail() {
                     <FileText className="w-4 h-4" />
                     Aus Angebot
                   </Button>
-                  <Button onClick={() => setImportTimeOpen(true)} variant="outline" size="sm" className="gap-1">
+                  <Button onClick={() => setImportProjectOpen(true)} variant="outline" size="sm" className="gap-1">
                     <TrendingUp className="w-4 h-4" />
-                    Arbeitszeit
-                  </Button>
-                  <Button onClick={() => setImportLieferscheinOpen(true)} variant="outline" size="sm" className="gap-1">
-                    <Package className="w-4 h-4" />
-                    Lieferschein
+                    Aus Projekt
                   </Button>
                   <Button onClick={() => setTemplateDialogOpen(true)} variant="outline" size="sm" className="gap-1">
                     <Package className="w-4 h-4" />
-                    Vorlage
+                    Materialien
                   </Button>
                   <Button onClick={addItem} variant="outline" size="sm" className="gap-1">
                     <Plus className="w-4 h-4" />
@@ -1403,6 +1401,26 @@ export default function InvoiceDetail() {
             setItems(prev => [...prev, ...newItems]);
             setImportTimeOpen(false);
             toast({ title: "Arbeitszeit importiert", description: `${newItems.length} Positionen hinzugefügt` });
+          }}
+        />
+
+        {/* Import from Project Dialog (Arbeitszeit + Material) */}
+        <ImportFromProjectDialog
+          open={importProjectOpen}
+          onClose={() => setImportProjectOpen(false)}
+          projectId={form.project_id}
+          onImport={(importedItems) => {
+            const newItems = importedItems.map((item, idx) => ({
+              position: items.length + idx + 1,
+              beschreibung: item.beschreibung,
+              menge: item.menge,
+              einheit: item.einheit,
+              einzelpreis: item.einzelpreis,
+              gesamtpreis: item.menge * item.einzelpreis,
+            }));
+            setItems(prev => [...prev, ...newItems]);
+            setImportProjectOpen(false);
+            toast({ title: "Aus Projekt importiert", description: `${newItems.length} Positionen hinzugefügt` });
           }}
         />
 
