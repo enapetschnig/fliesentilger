@@ -15,6 +15,7 @@ interface InvoicePdfPreviewProps {
   onClose: () => void;
   onSave?: () => Promise<void> | void;
   saving?: boolean;
+  saved?: boolean;
   // Either pass invoiceId to load from DB, or pass formData + items for client-side preview
   invoiceId?: string;
   formData?: InvoiceHtmlData;
@@ -26,6 +27,7 @@ export function InvoicePdfPreview({
   onClose,
   onSave,
   saving,
+  saved,
   invoiceId,
   formData,
   items,
@@ -96,9 +98,9 @@ export function InvoicePdfPreview({
                 {saving ? "Speichert..." : "Speichern"}
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Button variant="outline" size="sm" onClick={handlePrint} disabled={!saved && !!onSave}>
               <Download className="h-4 w-4 mr-2" />
-              PDF / Drucken
+              {!saved && onSave ? "Zuerst speichern" : "PDF / Drucken"}
             </Button>
             <Button variant="outline" size="sm" onClick={onClose}>
               <X className="h-4 w-4 mr-2" />

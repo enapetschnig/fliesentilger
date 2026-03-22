@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { FileText, Receipt, AlertTriangle } from "lucide-react";
+import { FileText, Receipt, AlertTriangle, Download } from "lucide-react";
 import { format, parseISO, isBefore } from "date-fns";
 import { de } from "date-fns/locale";
 import { PageHeader } from "@/components/PageHeader";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Invoice {
   id: string;
@@ -94,6 +95,29 @@ export default function Invoices() {
     } else {
       setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
       toast({ title: "Status geändert", description: `Status auf "${statusLabels[newStatus]}" gesetzt` });
+    }
+  };
+
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadPdf = async (invoiceId: string, nummer: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDownloadingId(invoiceId);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-invoice-pdf", {
+        body: { invoiceId },
+      });
+      if (error) throw error;
+      const html = decodeURIComponent(escape(atob(data.pdf)));
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Fehler", description: "PDF konnte nicht erstellt werden" });
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -240,6 +264,7 @@ export default function Invoices() {
                       <TableHead className="text-right">Brutto</TableHead>
                       {filterTyp !== "angebot" && <TableHead className="text-right">Bezahlt</TableHead>}
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -322,6 +347,19 @@ export default function Invoices() {
                                 </Badge>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {inv.status !== "entwurf" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
+                                disabled={downloadingId === inv.id}
+                                title="PDF öffnen"
+                              >
+                                <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );

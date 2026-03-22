@@ -16,6 +16,7 @@ import { ImportMaterialsDialog } from "@/components/ImportMaterialsDialog";
 import { ImportDisturbanceDialog } from "@/components/ImportDisturbanceDialog";
 import { ImportFromOfferDialog } from "@/components/ImportFromOfferDialog";
 import { ImportTimeDialog } from "@/components/ImportTimeDialog";
+import { ImportLieferscheinDialog } from "@/components/ImportLieferscheinDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { format, addMonths } from "date-fns";
@@ -144,7 +145,9 @@ export default function InvoiceDetail() {
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewSaved, setPreviewSaved] = useState(false);
   const [importMaterialsOpen, setImportMaterialsOpen] = useState(false);
+  const [importLieferscheinOpen, setImportLieferscheinOpen] = useState(false);
   const [importDisturbanceOpen, setImportDisturbanceOpen] = useState(false);
   const [importOfferOpen, setImportOfferOpen] = useState(false);
   const [importTimeOpen, setImportTimeOpen] = useState(false);
@@ -483,12 +486,14 @@ export default function InvoiceDetail() {
   };
 
   const handlePreview = () => {
+    setPreviewSaved(!isNew && !!invoiceId);
     setPreviewOpen(true);
   };
 
   const handleSaveFromPreview = async () => {
     const success = await handleSave();
     if (success) {
+      setPreviewSaved(true);
       toast({ title: "Gespeichert" });
     }
   };
@@ -1097,9 +1102,9 @@ export default function InvoiceDetail() {
                     <TrendingUp className="w-4 h-4" />
                     Arbeitszeit
                   </Button>
-                  <Button onClick={() => setImportMaterialsOpen(true)} variant="outline" size="sm" className="gap-1">
-                    <Import className="w-4 h-4" />
-                    Material
+                  <Button onClick={() => setImportLieferscheinOpen(true)} variant="outline" size="sm" className="gap-1">
+                    <Package className="w-4 h-4" />
+                    Lieferschein
                   </Button>
                   <Button onClick={() => setTemplateDialogOpen(true)} variant="outline" size="sm" className="gap-1">
                     <Package className="w-4 h-4" />
@@ -1294,6 +1299,7 @@ export default function InvoiceDetail() {
           onClose={() => setPreviewOpen(false)}
           onSave={handleSaveFromPreview}
           saving={saving}
+          saved={previewSaved}
           formData={{
             typ: form.typ,
             nummer: form.nummer,
@@ -1397,6 +1403,26 @@ export default function InvoiceDetail() {
             setItems(prev => [...prev, ...newItems]);
             setImportTimeOpen(false);
             toast({ title: "Arbeitszeit importiert", description: `${newItems.length} Positionen hinzugefügt` });
+          }}
+        />
+
+        {/* Import from Lieferschein Dialog */}
+        <ImportLieferscheinDialog
+          open={importLieferscheinOpen}
+          onClose={() => setImportLieferscheinOpen(false)}
+          projectId={form.project_id}
+          onImport={(importedItems) => {
+            const newItems = importedItems.map((item, idx) => ({
+              position: items.length + idx + 1,
+              beschreibung: item.beschreibung,
+              menge: item.menge,
+              einheit: item.einheit,
+              einzelpreis: item.einzelpreis,
+              gesamtpreis: item.menge * item.einzelpreis,
+            }));
+            setItems(prev => [...prev, ...newItems]);
+            setImportLieferscheinOpen(false);
+            toast({ title: "Material importiert", description: `${newItems.length} Positionen aus Lieferscheinen hinzugefügt` });
           }}
         />
 
