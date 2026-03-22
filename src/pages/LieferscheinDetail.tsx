@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Trash2, Package, ArrowDown, ArrowUp, RotateCcw, Plus } from "lucide-react";
+import { Trash2, Package, ArrowDown, ArrowUp, RotateCcw, Plus, Mic } from "lucide-react";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ export default function LieferscheinDetail() {
   const [formNotizen, setFormNotizen] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [returningEntry, setReturningEntry] = useState<MaterialEntry | null>(null);
+  const [voiceTyp, setVoiceTyp] = useState<"entnahme" | "rueckgabe" | null>(null);
 
   useEffect(() => {
     init();
@@ -188,17 +190,64 @@ export default function LieferscheinDetail() {
         </div>
 
         {/* Buttons */}
-        {!showForm && (
+        {!showForm && !voiceTyp && (
           <div className="flex gap-2 flex-wrap">
             <Button onClick={() => openForm("entnahme")} className="gap-2 bg-orange-600 hover:bg-orange-700">
               <ArrowUp className="h-4 w-4" />
               Material entnehmen
             </Button>
+            <Button onClick={() => setVoiceTyp("entnahme")} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50">
+              <Mic className="h-4 w-4" />
+              Per Sprache entnehmen
+            </Button>
             <Button onClick={() => openForm("rueckgabe")} variant="outline" className="gap-2">
               <ArrowDown className="h-4 w-4" />
               Material zurückbringen
             </Button>
+            <Button onClick={() => setVoiceTyp("rueckgabe")} variant="outline" className="gap-2 border-green-300 text-green-700 hover:bg-green-50">
+              <Mic className="h-4 w-4" />
+              Per Sprache zurückgeben
+            </Button>
           </div>
+        )}
+
+        {/* Voice Recorder */}
+        {voiceTyp && (
+          <VoiceRecorder
+            typ={voiceTyp}
+            existingItems={entries
+              .filter(e => e.typ === "entnahme")
+              .map((e, idx) => ({
+                position: idx + 1,
+                material: e.material,
+                menge: e.menge || "0",
+                einheit: e.einheit || "Stk.",
+              }))}
+            onAccept={async (voiceItems) => {
+              if (!currentUserId || !id) return;
+              for (const item of voiceItems) {
+                await supabase.from("material_entries").insert({
+                  lieferschein_id: id,
+                  project_id: null,
+                  user_id: currentUserId,
+                  material: item.material,
+                  menge: String(item.menge),
+                  einheit: item.einheit,
+                  einzelpreis: 0,
+                  typ: voiceTyp,
+                  notizen: null,
+                  datum: new Date().toISOString().split("T")[0],
+                });
+              }
+              toast({
+                title: voiceTyp === "entnahme" ? "Material entnommen" : "Material zurückgebucht",
+                description: `${voiceItems.length} Positionen per Sprache erfasst`,
+              });
+              setVoiceTyp(null);
+              fetchData();
+            }}
+            onCancel={() => setVoiceTyp(null)}
+          />
         )}
 
         {/* Form */}
