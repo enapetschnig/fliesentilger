@@ -118,7 +118,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   entwurf: "Entwurf",
-  gesendet: "Gesendet",
+  gesendet: "Offen",
   bezahlt: "Bezahlt",
   teilbezahlt: "Teilbezahlt",
   storniert: "Storniert",
@@ -852,7 +852,7 @@ export default function InvoiceDetail() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="entwurf">Entwurf</SelectItem>
-                        <SelectItem value="gesendet">{form.typ === "angebot" ? "Offen" : "Gesendet"}</SelectItem>
+                        <SelectItem value="gesendet">Offen</SelectItem>
                         {form.typ === "rechnung" ? (
                           <>
                             <SelectItem value="bezahlt">Bezahlt</SelectItem>

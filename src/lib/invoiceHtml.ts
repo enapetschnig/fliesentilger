@@ -205,12 +205,15 @@ export function buildInvoiceHtml(
   .bank-info-value { font-size: 9pt; color: #1a1a1a; font-weight: 600; }
 
   /* Footer */
-  .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a1a; padding: 12px 18mm; }
-  .footer-inner { display: flex; justify-content: space-between; gap: 20px; }
+  .footer { margin-top: 30px; border-top: 2px solid #CC0000; padding-top: 10px; }
+  .footer-inner { display: flex; justify-content: space-between; gap: 16px; }
   .footer-col { flex: 1; }
-  .footer-label { font-size: 6pt; text-transform: uppercase; letter-spacing: 1.5px; color: #777; font-weight: 700; margin-bottom: 3px; }
-  .footer-text { font-size: 7.5pt; color: #ccc; line-height: 1.5; }
+  .footer-label { font-size: 6pt; text-transform: uppercase; letter-spacing: 1.5px; color: #999; font-weight: 700; margin-bottom: 3px; }
+  .footer-text { font-size: 7.5pt; color: #555; line-height: 1.5; }
   .footer-accent { color: #CC0000; font-weight: 700; }
+  @media print {
+    .footer { position: fixed; bottom: 0; left: 18mm; right: 18mm; margin-top: 0; }
+  }
 
   /* Storniert watermark */
   .storniert::after { content: 'STORNIERT'; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 72pt; color: rgba(204,0,0,0.08); font-weight: 900; pointer-events: none; letter-spacing: 8px; }
