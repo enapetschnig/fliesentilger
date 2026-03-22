@@ -292,6 +292,14 @@ export default function InvoiceDetail() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  // Helper: merge imported items into existing list, replacing empty first row
+  const mergeItems = (prev: InvoiceItem[], newItems: InvoiceItem[]): InvoiceItem[] => {
+    // Check if first row is empty (default state)
+    const firstEmpty = prev.length === 1 && !prev[0].beschreibung.trim() && prev[0].einzelpreis === 0;
+    const base = firstEmpty ? [] : prev;
+    return [...base, ...newItems].map((item, idx) => ({ ...item, position: idx + 1 }));
+  };
+
   const addItem = () => {
     setItems(prev => [...prev, {
       position: prev.length + 1,
@@ -304,14 +312,15 @@ export default function InvoiceDetail() {
   };
 
   const addFromTemplate = (t: TemplateItem) => {
-    setItems(prev => [...prev, {
-      position: prev.length + 1,
+    const newItem: InvoiceItem = {
+      position: 1,
       beschreibung: t.beschreibung,
       menge: 1,
       einheit: t.einheit,
       einzelpreis: t.einzelpreis,
       gesamtpreis: t.einzelpreis,
-    }]);
+    };
+    setItems(prev => mergeItems(prev, [newItem]));
     setTemplateDialogOpen(false);
     toast({ title: "Position hinzugefügt", description: t.name });
   };
@@ -1487,7 +1496,7 @@ export default function InvoiceDetail() {
               einzelpreis: item.einzelpreis,
               gesamtpreis: item.menge * item.einzelpreis,
             }));
-            setItems(prev => [...prev, ...newItems]);
+            setItems(prev => mergeItems(prev, newItems));
             setImportMaterialsOpen(false);
             toast({ title: "Materialien importiert", description: `${newItems.length} Positionen hinzugefügt` });
           }}
@@ -1506,7 +1515,7 @@ export default function InvoiceDetail() {
               einzelpreis: item.einzelpreis,
               gesamtpreis: item.menge * item.einzelpreis,
             }));
-            setItems(prev => [...prev, ...newItems]);
+            setItems(prev => mergeItems(prev, newItems));
             // Fill customer data if empty
             if (kundeData && !form.kunde_name) {
               setForm(prev => ({
@@ -1536,7 +1545,7 @@ export default function InvoiceDetail() {
               einzelpreis: item.einzelpreis,
               gesamtpreis: item.menge * item.einzelpreis,
             }));
-            setItems(prev => [...prev, ...newItems]);
+            setItems(prev => mergeItems(prev, newItems));
             setImportTimeOpen(false);
             toast({ title: "Arbeitszeit importiert", description: `${newItems.length} Positionen hinzugefügt` });
           }}
@@ -1556,7 +1565,7 @@ export default function InvoiceDetail() {
               einzelpreis: item.einzelpreis,
               gesamtpreis: item.menge * item.einzelpreis,
             }));
-            setItems(prev => [...prev, ...newItems]);
+            setItems(prev => mergeItems(prev, newItems));
             setImportProjectOpen(false);
             toast({ title: "Aus Projekt importiert", description: `${newItems.length} Positionen hinzugefügt` });
           }}
@@ -1576,7 +1585,7 @@ export default function InvoiceDetail() {
               einzelpreis: item.einzelpreis,
               gesamtpreis: item.menge * item.einzelpreis,
             }));
-            setItems(prev => [...prev, ...newItems]);
+            setItems(prev => mergeItems(prev, newItems));
             setImportLieferscheinOpen(false);
             toast({ title: "Material importiert", description: `${newItems.length} Positionen aus Lieferscheinen hinzugefügt` });
           }}
@@ -1596,7 +1605,7 @@ export default function InvoiceDetail() {
               einzelpreis: item.einzelpreis,
               gesamtpreis: item.menge * item.einzelpreis,
             }));
-            setItems(prev => [...prev, ...newItems]);
+            setItems(prev => mergeItems(prev, newItems));
             // Fill customer data from offer if empty
             if (!form.kunde_name && offer.kunde_name) {
               setForm(prev => ({ ...prev, kunde_name: offer.kunde_name }));
