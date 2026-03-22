@@ -525,8 +525,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     console.log("Sending email with PDF attachment to:", recipients);
 
+    // Use Resend test domain if ft-tilger.at is not verified yet
+    // Once domain is verified in Resend dashboard, change back to noreply@ft-tilger.at
+    const fromAddress = Deno.env.get("RESEND_FROM_EMAIL") || "Fliesentechnik Tilger <onboarding@resend.dev>";
+
+    console.log("Sending from:", fromAddress);
+
     const emailResponse = await resend.emails.send({
-      from: "Fliesentechnik Tilger <noreply@ft-tilger.at>",
+      from: fromAddress,
       to: recipients,
       subject: subject,
       html: emailHtml,
@@ -538,7 +544,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ],
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Resend response:", JSON.stringify(emailResponse));
+
+    // Check for Resend errors
+    if (emailResponse?.error) {
+      console.error("Resend error:", JSON.stringify(emailResponse.error));
+      return new Response(
+        JSON.stringify({ error: emailResponse.error.message || "E-Mail konnte nicht gesendet werden", details: emailResponse.error }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log("Email sent successfully:", JSON.stringify(emailResponse));
 
     return new Response(
       JSON.stringify({ success: true, emailResponse }),
