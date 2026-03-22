@@ -150,10 +150,10 @@ export function buildInvoiceHtml(
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
 <style>
-  @page { size: A4; margin: 12mm 18mm 32mm 18mm; }
+  @page { size: A4; margin: 15mm 22mm 35mm 22mm; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #333; line-height: 1.5; padding-bottom: 60px; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #333; line-height: 1.5; padding: 20px 28px 70px 28px; }
 
   /* Header */
   .header-bar { padding: 10px 0 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #CC0000; margin-bottom: 16px; }
@@ -202,14 +202,10 @@ export function buildInvoiceHtml(
   .bank-info-label { font-size: 7pt; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
   .bank-info-value { font-size: 9pt; color: #1a1a1a; font-weight: 600; }
 
-  /* Footer — always at bottom */
-  .footer { border-top: 2px solid #CC0000; padding-top: 8px; font-size: 7pt; color: #888; line-height: 1.6; }
-  .footer-line { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 20px; }
+  /* Footer — fixed at page bottom */
+  .footer { position: fixed; bottom: 0; left: 22mm; right: 22mm; border-top: 2px solid #CC0000; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; background: #fff; }
+  .footer-line { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 16px; }
   .footer-accent { color: #CC0000; font-weight: 700; }
-  @media print {
-    .footer { position: fixed; bottom: 0; left: 0; right: 0; }
-    body { padding-bottom: 0; }
-  }
 
   /* Storniert watermark */
   .storniert::after { content: 'STORNIERT'; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 72pt; color: rgba(204,0,0,0.08); font-weight: 900; pointer-events: none; letter-spacing: 8px; }
