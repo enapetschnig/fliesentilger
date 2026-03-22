@@ -7,11 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { FileText, Receipt, AlertTriangle, Download } from "lucide-react";
+import { FileText, Receipt, AlertTriangle, Download, Archive, ArchiveRestore, Trash2, FileDown } from "lucide-react";
 import { format, parseISO, isBefore } from "date-fns";
 import { de } from "date-fns/locale";
 import { PageHeader } from "@/components/PageHeader";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Invoice {
   id: string;
@@ -27,6 +32,7 @@ interface Invoice {
   mahnstufe: number;
   gueltig_bis: string | null;
   bezahlt_betrag: number;
+  archiviert: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -61,6 +67,11 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true);
   const [filterTyp, setFilterTyp] = useState<string>("alle");
   const [filterStatus, setFilterStatus] = useState<string>("alle");
+  const [showArchive, setShowArchive] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportMonth, setExportMonth] = useState<string>(format(new Date(), "yyyy-MM"));
+  const [exportMode, setExportMode] = useState<"month" | "year">("month");
+  const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -76,13 +87,13 @@ export default function Invoices() {
   const fetchInvoices = async () => {
     const { data, error } = await supabase
       .from("invoices")
-      .select("id, typ, nummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag")
+      .select("id, typ, nummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag, archiviert")
       .order("datum", { ascending: false });
 
     if (error) {
       toast({ variant: "destructive", title: "Fehler", description: "Rechnungen konnten nicht geladen werden" });
     } else {
-      setInvoices((data || []).map(d => ({ ...d, mahnstufe: (d as any).mahnstufe || 0, gueltig_bis: (d as any).gueltig_bis || null, bezahlt_betrag: Number((d as any).bezahlt_betrag) || 0 })));
+      setInvoices((data || []).map(d => ({ ...d, mahnstufe: (d as any).mahnstufe || 0, gueltig_bis: (d as any).gueltig_bis || null, bezahlt_betrag: Number((d as any).bezahlt_betrag) || 0, archiviert: !!(d as any).archiviert })));
     }
     setLoading(false);
   };
@@ -121,6 +132,83 @@ export default function Invoices() {
     }
   };
 
+  const handleArchive = async (invoiceId: string, archive: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("invoices").update({ archiviert: archive }).eq("id", invoiceId);
+    if (error) {
+      toast({ variant: "destructive", title: "Fehler" });
+    } else {
+      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, archiviert: archive } : inv));
+      toast({ title: archive ? "Archiviert" : "Wiederhergestellt" });
+    }
+  };
+
+  const handleDelete = async (invoiceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Wirklich endgültig löschen?")) return;
+    const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
+    if (error) {
+      toast({ variant: "destructive", title: "Fehler" });
+    } else {
+      setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+      toast({ title: "Gelöscht" });
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    const year = exportMonth.substring(0, 4);
+    const month = exportMonth.substring(5, 7);
+
+    let startDate: string, endDate: string, label: string;
+    if (exportMode === "month") {
+      startDate = `${year}-${month}-01`;
+      const nextMonth = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, "0")}-01`;
+      endDate = nextMonth;
+      label = format(parseISO(startDate), "MMMM yyyy", { locale: de });
+    } else {
+      startDate = `${year}-01-01`;
+      endDate = `${Number(year) + 1}-01-01`;
+      label = `Jahr ${year}`;
+    }
+
+    // Get matching invoices
+    const toExport = invoices.filter(i => {
+      const d = i.datum;
+      return d >= startDate && d < endDate && i.status !== "entwurf";
+    });
+
+    if (toExport.length === 0) {
+      toast({ title: "Keine Dokumente", description: `Keine Rechnungen/Angebote für ${label} gefunden` });
+      setExporting(false);
+      return;
+    }
+
+    // Open each PDF in sequence
+    let success = 0;
+    for (const inv of toExport) {
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-invoice-pdf", {
+          body: { invoiceId: inv.id },
+        });
+        if (error) continue;
+        const html = decodeURIComponent(escape(atob(data.pdf)));
+        const win = window.open("", "_blank");
+        if (win) {
+          win.document.write(html);
+          win.document.close();
+          win.document.title = `${inv.nummer} - ${inv.kunde_name}`;
+        }
+        success++;
+      } catch {
+        // skip
+      }
+    }
+    toast({ title: `${success} PDFs geöffnet`, description: `Export für ${label}` });
+    setExporting(false);
+    setExportDialogOpen(false);
+  };
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -139,7 +227,8 @@ export default function Invoices() {
   const filtered = invoices.filter(i => {
     const matchTyp = filterTyp === "alle" || i.typ === filterTyp;
     const matchStatus = filterStatus === "alle" || i.status === filterStatus;
-    return matchTyp && matchStatus;
+    const matchArchive = showArchive ? i.archiviert : !i.archiviert;
+    return matchTyp && matchStatus && matchArchive;
   });
 
   const totalRechnungen = invoices.filter(i => i.typ === "rechnung").length;
@@ -230,14 +319,26 @@ export default function Invoices() {
                 </Select>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Button onClick={() => navigate("/invoices/new?typ=angebot")} variant="outline" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  Neues Angebot
+                <Button onClick={() => setExportDialogOpen(true)} variant="outline" size="sm" className="gap-1">
+                  <FileDown className="w-4 h-4" />
+                  Export
                 </Button>
-                <Button onClick={() => navigate("/invoices/new?typ=rechnung")} variant="default" className="gap-2">
-                  <Receipt className="w-4 h-4" />
-                  Neue Rechnung
+                <Button onClick={() => setShowArchive(!showArchive)} variant={showArchive ? "secondary" : "outline"} size="sm" className="gap-1">
+                  <Archive className="w-4 h-4" />
+                  {showArchive ? "Aktive" : "Archiv"}
                 </Button>
+                {!showArchive && (
+                  <>
+                    <Button onClick={() => navigate("/invoices/new?typ=angebot")} variant="outline" className="gap-2">
+                      <FileText className="w-4 h-4" />
+                      Neues Angebot
+                    </Button>
+                    <Button onClick={() => navigate("/invoices/new?typ=rechnung")} variant="default" className="gap-2">
+                      <Receipt className="w-4 h-4" />
+                      Neue Rechnung
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -349,17 +450,33 @@ export default function Invoices() {
                             </div>
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
-                            {inv.status !== "entwurf" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
-                                disabled={downloadingId === inv.id}
-                                title="PDF öffnen"
-                              >
-                                <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-0.5">
+                              {inv.status !== "entwurf" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => handleDownloadPdf(inv.id, inv.nummer, e)}
+                                  disabled={downloadingId === inv.id}
+                                  title="PDF öffnen"
+                                >
+                                  <Download className={`h-4 w-4 ${downloadingId === inv.id ? "animate-spin" : ""}`} />
+                                </Button>
+                              )}
+                              {!inv.archiviert ? (
+                                <Button variant="ghost" size="sm" onClick={(e) => handleArchive(inv.id, true, e)} title="Archivieren">
+                                  <Archive className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button variant="ghost" size="sm" onClick={(e) => handleArchive(inv.id, false, e)} title="Wiederherstellen">
+                                    <ArchiveRestore className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" onClick={(e) => handleDelete(inv.id, e)} title="Endgültig löschen">
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -370,6 +487,71 @@ export default function Invoices() {
             )}
           </CardContent>
         </Card>
+
+        {/* Export Dialog */}
+        <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileDown className="w-5 h-5" />
+                Rechnungen & Angebote exportieren
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex rounded-lg border overflow-hidden">
+                <button
+                  onClick={() => setExportMode("month")}
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${exportMode === "month" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                >
+                  Monat
+                </button>
+                <button
+                  onClick={() => setExportMode("year")}
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors border-l ${exportMode === "year" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                >
+                  Ganzes Jahr
+                </button>
+              </div>
+
+              {exportMode === "month" ? (
+                <div>
+                  <label className="text-sm font-medium">Monat auswählen</label>
+                  <input
+                    type="month"
+                    value={exportMonth}
+                    onChange={(e) => setExportMonth(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-sm font-medium">Jahr auswählen</label>
+                  <Select value={exportMonth.substring(0, 4)} onValueChange={(v) => setExportMonth(`${v}-01`)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const y = new Date().getFullYear() - i;
+                        return <SelectItem key={y} value={String(y)}>{y}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Alle Rechnungen und Angebote (außer Entwürfe) werden als einzelne PDFs in neuen Tabs geöffnet. Von dort können sie gedruckt oder gespeichert werden.
+              </p>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setExportDialogOpen(false)}>Abbrechen</Button>
+                <Button onClick={handleExport} disabled={exporting} className="gap-2">
+                  <FileDown className="w-4 h-4" />
+                  {exporting ? "Exportiert..." : "PDFs exportieren"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
