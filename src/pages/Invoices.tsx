@@ -103,9 +103,43 @@ export default function Invoices() {
     const { error } = await supabase.from("invoices").update({ status: newStatus }).eq("id", invoiceId);
     if (error) {
       toast({ variant: "destructive", title: "Fehler", description: "Status konnte nicht geändert werden" });
-    } else {
-      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
-      toast({ title: "Status geändert", description: `Status auf "${statusLabels[newStatus]}" gesetzt` });
+      return;
+    }
+
+    setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
+    toast({ title: "Status geändert", description: `Status auf "${statusLabels[newStatus]}" gesetzt` });
+
+    // When offer is accepted → create project automatically
+    if (newStatus === "angenommen") {
+      const inv = invoices.find(i => i.id === invoiceId);
+      if (inv && !inv.project_id) {
+        // Load full invoice for customer data
+        const { data: fullInv } = await supabase
+          .from("invoices")
+          .select("kunde_name, kunde_adresse, kunde_plz, kunde_ort, customer_id")
+          .eq("id", invoiceId)
+          .single();
+
+        if (fullInv) {
+          const { data: project, error: projErr } = await supabase
+            .from("projects")
+            .insert({
+              name: `${inv.nummer} – ${fullInv.kunde_name}`,
+              adresse: fullInv.kunde_adresse || "",
+              plz: fullInv.kunde_plz || "0000",
+              customer_id: fullInv.customer_id || null,
+            })
+            .select("id")
+            .single();
+
+          if (!projErr && project) {
+            // Link invoice to new project
+            await supabase.from("invoices").update({ project_id: project.id }).eq("id", invoiceId);
+            setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, project_id: project.id } : i));
+            toast({ title: "Projekt erstellt", description: `Projekt "${inv.nummer} – ${fullInv.kunde_name}" wurde automatisch angelegt` });
+          }
+        }
+      }
     }
   };
 

@@ -171,7 +171,7 @@ export default function InvoiceDetail() {
     kunde_telefon: "",
     kunde_uid: "",
     datum: format(new Date(), "yyyy-MM-dd"),
-    faellig_am: "",
+    faellig_am: format(new Date(Date.now() + 14 * 86400000), "yyyy-MM-dd"),
     leistungsdatum: format(new Date(), "yyyy-MM-dd"),
     zahlungsbedingungen: "14 Tage netto",
     notizen: "",
@@ -1033,8 +1033,29 @@ export default function InvoiceDetail() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Zahlungsbedingungen</Label>
-                  <Input value={form.zahlungsbedingungen} onChange={(e) => updateField("zahlungsbedingungen", e.target.value)} />
+                  <Label>Zahlbar bis</Label>
+                  <Select
+                    value={form.zahlungsbedingungen}
+                    onValueChange={(v) => {
+                      updateField("zahlungsbedingungen", v);
+                      // Auto-calculate faellig_am
+                      const days = v === "sofort" ? 0 : v === "7 Tage netto" ? 7 : v === "14 Tage netto" ? 14 : v === "30 Tage netto" ? 30 : v === "60 Tage netto" ? 60 : 14;
+                      if (form.datum) {
+                        const due = new Date(form.datum);
+                        due.setDate(due.getDate() + days);
+                        updateField("faellig_am", format(due, "yyyy-MM-dd"));
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sofort">Sofort fällig</SelectItem>
+                      <SelectItem value="7 Tage netto">7 Tage netto</SelectItem>
+                      <SelectItem value="14 Tage netto">14 Tage netto</SelectItem>
+                      <SelectItem value="30 Tage netto">30 Tage netto</SelectItem>
+                      <SelectItem value="60 Tage netto">60 Tage netto</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Projekt (optional)</Label>
