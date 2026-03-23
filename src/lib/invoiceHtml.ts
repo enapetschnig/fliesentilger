@@ -150,62 +150,58 @@ export function buildInvoiceHtml(
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
 <style>
-  @page { size: A4; margin: 15mm 22mm 35mm 22mm; }
+  @page { size: A4; margin: 18mm 20mm 32mm 20mm; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #333; line-height: 1.5; padding: 20px 28px 70px 28px; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9pt; color: #333; line-height: 1.5; }
 
-  /* Header */
-  .header-bar { padding: 10px 0 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #CC0000; margin-bottom: 16px; }
-  .header-left img { height: 54px; width: auto; }
-  .header-right { display: flex; align-items: center; gap: 16px; }
-  .header-contact { color: #666; font-size: 7.5pt; line-height: 1.7; text-align: right; }
-  .header-contact a { color: #CC0000; text-decoration: none; }
-  .doc-badge { background: ${accent}; color: #fff; padding: 5px 16px; border-radius: 3px; font-size: 10pt; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  /* Header — logo left, company info right */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid #ccc; margin-bottom: 18px; }
+  .header-logo img { height: 50px; width: auto; }
+  .header-info { text-align: right; font-size: 8pt; color: #555; line-height: 1.6; }
+  .header-info strong { color: #1a1a1a; font-size: 9pt; }
 
-  /* Sender line */
-  .sender-line { font-size: 7pt; color: #999; letter-spacing: 0.5px; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 14px; }
+  /* Address row — recipient left, meta right */
+  .address-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
+  .recipient { flex: 1; }
+  .sender-line { font-size: 7pt; color: #999; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 8px; }
+  .recipient-name { font-weight: 700; font-size: 10pt; color: #1a1a1a; }
+  .recipient-addr { font-size: 9pt; color: #555; line-height: 1.6; }
+  .doc-meta { text-align: right; min-width: 180px; }
+  .doc-meta-row { display: flex; justify-content: space-between; gap: 12px; font-size: 8.5pt; line-height: 1.8; }
+  .doc-meta-label { color: #888; }
+  .doc-meta-value { color: #1a1a1a; font-weight: 600; }
 
-  /* Address */
-  .addr-block { margin-bottom: 20px; }
-  .addr-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #999; margin-bottom: 4px; font-weight: 700; }
-  .addr-name { font-weight: 700; font-size: 11pt; color: #1a1a1a; margin-bottom: 2px; }
-  .addr-detail { font-size: 9pt; color: #555; line-height: 1.6; }
+  /* Document title */
+  .doc-title { font-size: 14pt; font-weight: 800; color: #1a1a1a; margin-bottom: 16px; border-bottom: 2px solid ${accent}; padding-bottom: 6px; }
 
-  /* Meta info */
-  .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; background: #f8f8f8; border: 1px solid #e8e8e8; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px; }
-  .meta-label { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: 600; }
-  .meta-value { display: block; font-size: 9.5pt; color: #1a1a1a; font-weight: 600; margin-top: 1px; }
-
-  /* Items table */
-  table.items { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  table.items thead th { background: #1a1a1a; color: #fff; padding: 8px 10px; font-size: 7pt; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
-  table.items thead th:first-child { border-radius: 3px 0 0 0; }
-  table.items thead th:last-child { border-radius: 0 3px 0 0; }
+  /* Items table — clean like reference */
+  table.items { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+  table.items thead th { border-bottom: 2px solid #333; padding: 6px 8px; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #555; background: none; }
+  table.items tbody td { padding: 7px 8px; border-bottom: 1px solid #e0e0e0; font-size: 8.5pt; vertical-align: top; }
+  table.items tbody tr { page-break-inside: avoid; }
+  table.items tbody tr:last-child td { border-bottom: 2px solid #333; }
 
   /* Totals — avoid page break */
-  .totals-section { page-break-inside: avoid; }
-  .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 14px; }
-  .totals-table { width: 260px; }
-  .totals-table td { padding: 3px 0; }
+  .totals-section { page-break-inside: avoid; break-inside: avoid; }
+  .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 18px; }
+  .totals-table { width: 250px; }
+  .totals-table td { padding: 3px 0; font-size: 9pt; }
 
   /* Notes */
-  .notes { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 0 4px 4px 0; font-size: 9pt; color: #78350f; margin-bottom: 16px; }
+  .notes { border-left: 3px solid #ddd; padding: 8px 14px; font-size: 8.5pt; color: #555; margin-bottom: 14px; }
 
   /* Closing */
-  .closing-text { font-size: 9pt; color: #555; margin-bottom: 16px; padding: 10px 0; border-top: 1px solid #eee; }
+  .closing-text { font-size: 8.5pt; color: #666; margin-bottom: 14px; padding-top: 8px; page-break-inside: avoid; break-inside: avoid; }
 
-  /* Bank info */
-  .bank-info { background: #f8f9fa; border: 1px solid #e8e8e8; border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; page-break-inside: avoid; }
-  .bank-info-title { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #999; font-weight: 700; margin-bottom: 6px; }
-  .bank-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .bank-info-label { font-size: 7pt; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
-  .bank-info-value { font-size: 9pt; color: #1a1a1a; font-weight: 600; }
+  /* Bank info — inline like reference */
+  .bank-info { page-break-inside: avoid; break-inside: avoid; margin-bottom: 10px; }
+  .bank-info-row { font-size: 8pt; color: #555; }
+  .bank-info-row strong { color: #333; }
 
-  /* Footer — fixed at page bottom */
-  .footer { position: fixed; bottom: 0; left: 22mm; right: 22mm; border-top: 2px solid #CC0000; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; background: #fff; }
-  .footer-line { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 16px; }
-  .footer-accent { color: #CC0000; font-weight: 700; }
+  /* Footer — fixed at bottom of every page */
+  .footer { position: fixed; bottom: -22mm; left: 0; right: 0; border-top: 1px solid #ccc; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; }
+  .footer-line { text-align: center; }
 
   /* Storniert watermark */
   .storniert::after { content: 'STORNIERT'; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 72pt; color: rgba(204,0,0,0.08); font-weight: 900; pointer-events: none; letter-spacing: 8px; }
@@ -216,52 +212,69 @@ export function buildInvoiceHtml(
 ${mahnBanner}
 
 <!-- Header -->
-<div class="header-bar">
-  <div class="header-left">
+<div class="header">
+  <div class="header-logo">
     ${LOGO_IMG}
   </div>
-  <div class="header-right">
-    <div class="header-contact">
-      Bahnhofstr. 174 · 8831 Niederwölz<br>
-      Tel: <a href="tel:+436644435346">+43 664 44 35 346</a><br>
-      <a href="mailto:info@ft-tilger.at">info@ft-tilger.at</a>
+  <div class="header-info">
+    <strong>Gottfried Tilger</strong><br>
+    Bahnhofstr. 174<br>
+    8831 Niederwölz<br>
+    Tel: +43 664 44 35 346<br>
+    E-Mail: info@ft-tilger.at
+  </div>
+</div>
+
+<!-- Address row — recipient left, meta right -->
+<div class="address-row">
+  <div class="recipient">
+    <div class="sender-line">Gottfried Tilger · Bahnhofstr. 174 · 8831 Niederwölz</div>
+    <div class="recipient-name">${invoice.kunde_name || "–"}</div>
+    <div class="recipient-addr">
+      ${invoice.kunde_adresse ? `${invoice.kunde_adresse}<br>` : ""}
+      ${invoice.kunde_plz || invoice.kunde_ort ? `${invoice.kunde_plz || ""} ${invoice.kunde_ort || ""}<br>` : ""}
+      ${invoice.kunde_land && invoice.kunde_land !== "Österreich" ? `${invoice.kunde_land}<br>` : ""}
+      ${invoice.kunde_uid ? `UID: ${invoice.kunde_uid}` : ""}
     </div>
-    <div class="doc-badge">${typLabel}</div>
+  </div>
+  <div class="doc-meta">
+    ${metaParts.map(p => {
+      // Convert meta-grid items to simple rows
+      const labelMatch = p.match(/class="meta-label">([^<]+)/);
+      const valueMatch = p.match(/class="meta-value">([^<]+)/);
+      if (labelMatch && valueMatch) {
+        return `<div class="doc-meta-row"><span class="doc-meta-label">${labelMatch[1]}</span><span class="doc-meta-value">${valueMatch[1]}</span></div>`;
+      }
+      return "";
+    }).join("")}
   </div>
 </div>
 
-<!-- Sender line + Empfänger -->
-<div class="sender-line">Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz</div>
-
-<div class="addr-block">
-  <div class="addr-name">${invoice.kunde_name || "–"}</div>
-  <div class="addr-detail">
-    ${invoice.kunde_adresse ? `${invoice.kunde_adresse}<br>` : ""}
-    ${invoice.kunde_plz || invoice.kunde_ort ? `${invoice.kunde_plz || ""} ${invoice.kunde_ort || ""}<br>` : ""}
-    ${invoice.kunde_land && invoice.kunde_land !== "Österreich" ? `${invoice.kunde_land}<br>` : ""}
-    ${invoice.kunde_uid ? `<span style="color:#999;font-size:8pt;">UID: ${invoice.kunde_uid}</span>` : ""}
-  </div>
-</div>
-
-<!-- Document Meta -->
-<div class="meta-grid">
-  ${metaParts.join("")}
-</div>
+<!-- Document Title -->
+<div class="doc-title">${typLabel}${invoice.nummer ? ` Nr.: ${invoice.nummer}` : ""}</div>
 
 <!-- Items Table -->
 <table class="items">
   <thead>
     <tr>
-      <th style="width:36px;text-align:center;">Pos</th>
+      <th style="width:40px;text-align:center;">Pos.</th>
+      <th style="width:55px;text-align:right;">Menge</th>
+      <th style="width:45px;text-align:center;">Einh.</th>
       <th style="text-align:left;">Beschreibung</th>
-      <th style="width:60px;text-align:right;">Menge</th>
-      <th style="width:50px;text-align:center;">Einheit</th>
-      <th style="width:90px;text-align:right;">Einzelpreis</th>
-      <th style="width:100px;text-align:right;">Gesamt</th>
+      <th style="width:80px;text-align:right;">Preis</th>
+      <th style="width:90px;text-align:right;">Gesamt</th>
     </tr>
   </thead>
   <tbody>
-    ${itemRows}
+    ${(items || []).map((item, idx) => `
+    <tr>
+      <td style="text-align:center;color:#888;">${String(item.position).padStart(2, "0")}</td>
+      <td style="text-align:right;">${fmt(Number(item.menge))}</td>
+      <td style="text-align:center;color:#888;">${item.einheit || "Stk."}</td>
+      <td>${item.beschreibung}</td>
+      <td style="text-align:right;">${fmtCurrency(Number(item.einzelpreis))}</td>
+      <td style="text-align:right;font-weight:600;">${fmtCurrency(Number(item.gesamtpreis))}</td>
+    </tr>`).join("")}
   </tbody>
 </table>
 
@@ -280,27 +293,21 @@ ${closingText}
 
 ${
   !isAngebot
-    ? `<!-- Bank Details -->
-<div class="bank-info">
-  <div class="bank-info-title">Bankverbindung</div>
-  <div class="bank-info-grid">
-    <div><div class="bank-info-label">Kontoinhaber</div><div class="bank-info-value">Gottfried Tilger</div></div>
-    <div><div class="bank-info-label">IBAN</div><div class="bank-info-value">AT61 2081 5000 0423 1474</div></div>
-    <div><div class="bank-info-label">BIC</div><div class="bank-info-value">STSPAT2GXXX</div></div>
+    ? `<div class="bank-info">
+  <div class="bank-info-row">
+    <strong>Bankverbindung:</strong> Gottfried Tilger · IBAN: AT61 2081 5000 0423 1474 · BIC: STSPAT2GXXX
   </div>
 </div>`
     : ""
 }
 
-<!-- Footer -->
+<!-- Footer — appears on every page -->
 <div class="footer">
   <div class="footer-line">
-    <span><span class="footer-accent">Gottfried Tilger</span> · Fliesentechnik & Natursteinteppich</span>
-    <span>Bahnhofstr. 174 · 8831 Niederwölz</span>
-    <span>Tel: +43 664 44 35 346 · <span class="footer-accent">info@ft-tilger.at</span></span>
+    Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz · Tel: +43 664 44 35 346 · info@ft-tilger.at
   </div>
-  <div class="footer-line" style="margin-top:2px;">
-    <span>IBAN: AT61 2081 5000 0423 1474 · BIC: STSPAT2GXXX</span>
+  <div class="footer-line">
+    Bankverbindung: IBAN AT61 2081 5000 0423 1474 · BIC STSPAT2GXXX
   </div>
 </div>
 

@@ -80,10 +80,10 @@ function buildHtml(invoice: any, items: any[]): string {
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer}</title>
 <style>
-  @page { size: A4; margin: 15mm 22mm 35mm 22mm; }
+  @page { size: A4; margin: 20mm 25mm 42mm 25mm; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #333; line-height: 1.5; padding: 20px 28px 70px 28px; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #333; line-height: 1.5; padding: 0; }
 
   .header-bar { padding: 10px 0 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #CC0000; margin-bottom: 16px; }
   .header-left img { height: 54px; width: auto; }
@@ -106,21 +106,22 @@ function buildHtml(invoice: any, items: any[]): string {
   table.items thead th:first-child { border-radius: 3px 0 0 0; }
   table.items thead th:last-child { border-radius: 0 3px 0 0; }
 
-  .totals-section { page-break-inside: avoid; }
+  table.items tbody tr { page-break-inside: avoid; }
+  .totals-section { page-break-inside: avoid; break-inside: avoid; }
   .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 14px; }
   .totals-table { width: 260px; }
   .totals-table td { padding: 3px 0; }
 
   .notes { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 0 4px 4px 0; font-size: 9pt; color: #78350f; margin-bottom: 16px; }
-  .closing-text { font-size: 9pt; color: #555; margin-bottom: 16px; padding: 10px 0; border-top: 1px solid #eee; }
+  .closing-text { font-size: 9pt; color: #555; margin-bottom: 16px; padding: 10px 0; border-top: 1px solid #eee; page-break-inside: avoid; break-inside: avoid; }
 
-  .bank-info { background: #f8f9fa; border: 1px solid #e8e8e8; border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; page-break-inside: avoid; }
+  .bank-info { background: #f8f9fa; border: 1px solid #e8e8e8; border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid; }
   .bank-info-title { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #999; font-weight: 700; margin-bottom: 6px; }
   .bank-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .bank-info-label { font-size: 7pt; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
   .bank-info-value { font-size: 9pt; color: #1a1a1a; font-weight: 600; }
 
-  .footer { position: fixed; bottom: 0; left: 22mm; right: 22mm; border-top: 2px solid #CC0000; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; background: #fff; }
+  .footer { position: fixed; bottom: -30mm; left: 0; right: 0; border-top: 2px solid #CC0000; padding-top: 8px; font-size: 7pt; color: #888; line-height: 1.6; background: #fff; }
   .footer-line { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 16px; }
   .footer-accent { color: #CC0000; font-weight: 700; }
 
