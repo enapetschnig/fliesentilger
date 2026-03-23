@@ -150,22 +150,14 @@ export function buildInvoiceHtml(
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
 <style>
-  @page { size: A4; margin: 22mm 15mm 28mm 15mm; }
+  @page { size: A4; margin: 15mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .page-wrap { padding: 0; }
     .no-print { display: none !important; }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9pt; color: #333; line-height: 1.5; }
-  .page-wrap { max-width: 210mm; margin: 0 auto; padding: 15mm; }
-
-  /* Running header — appears on every printed page */
-  .running-header { display: none; }
-  @media print {
-    .running-header { display: flex; position: fixed; top: -8mm; left: 0; right: 0; justify-content: space-between; align-items: center; padding-bottom: 4px; border-bottom: 1px solid #ddd; font-size: 7pt; color: #888; }
-    .running-header img { height: 28px; width: auto; }
-  }
+  .page-wrap { max-width: 180mm; margin: 0 auto; padding: 0; }
 
   /* Header — logo left, company info right (first page) */
   .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid #ccc; margin-bottom: 18px; }
@@ -214,11 +206,8 @@ export function buildInvoiceHtml(
   .bank-info-row { font-size: 8pt; color: #555; }
   .bank-info-row strong { color: #333; }
 
-  /* Footer */
-  .footer { border-top: 1px solid #ccc; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; margin-top: 24px; }
-  @media print {
-    .footer { position: fixed; bottom: -18mm; left: 0; right: 0; margin-top: 0; }
-  }
+  /* Footer — hidden in PDF (added by jsPDF on every page), visible only in direct browser view */
+  .footer { border-top: 1px solid #ccc; padding-top: 8px; font-size: 7pt; color: #888; line-height: 1.5; margin-top: 30px; page-break-inside: avoid; break-inside: avoid; }
   .footer-line { text-align: center; }
 
   /* Storniert watermark */
@@ -226,12 +215,6 @@ export function buildInvoiceHtml(
 </style>
 </head>
 <body class="${invoice.status === "storniert" ? "storniert" : ""}">
-
-<!-- Running header/footer for multi-page print -->
-<div class="running-header">
-  ${LOGO_IMG}
-  <span>${typLabel}${invoice.nummer ? ` Nr. ${invoice.nummer}` : ""} · ${datumFormatted}</span>
-</div>
 
 <div class="page-wrap">
 
