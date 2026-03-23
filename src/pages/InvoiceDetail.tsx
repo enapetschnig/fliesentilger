@@ -1449,7 +1449,7 @@ export default function InvoiceDetail() {
             )}
             <Button onClick={handlePreview} className="gap-2">
               <Eye className="w-4 h-4" />
-              {isLocked ? "Vorschau / PDF" : "Speichern & Vorschau"}
+              Vorschau
             </Button>
           </div>
         </div>

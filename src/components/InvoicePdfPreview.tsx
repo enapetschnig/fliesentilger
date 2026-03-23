@@ -8,6 +8,7 @@ import {
   type InvoiceHtmlData,
   type InvoiceHtmlItem,
 } from "@/lib/invoiceHtml";
+import jsPDF from "jspdf";
 
 interface InvoicePdfPreviewProps {
   open: boolean;
@@ -22,84 +23,133 @@ interface InvoicePdfPreviewProps {
   fileName?: string;
 }
 
-async function createPdfWithHeaderFooter(
-  html: string,
-  docLabel: string
-): Promise<Blob> {
-  const html2pdf = (await import("html2pdf.js")).default;
+function addFooterToAllPages(pdf: jsPDF) {
+  const totalPages = pdf.internal.getNumberOfPages();
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
 
-  // Strip footer from HTML (we'll add it via jsPDF on every page)
-  const htmlWithoutFooter = html.replace(
-    /<div class="footer">[\s\S]*?<\/div>\s*<\/div><!-- \/page-wrap -->/,
-    '</div><!-- /page-wrap -->'
-  );
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    const footerY = pageHeight - 14;
+
+    // Red line
+    pdf.setDrawColor(204, 0, 0);
+    pdf.setLineWidth(0.3);
+    pdf.line(15, footerY, pageWidth - 15, footerY);
+
+    // Footer text
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(136, 136, 136);
+
+    pdf.text(
+      "Gottfried Tilger \u00B7 Fliesentechnik & Natursteinteppich \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz \u00B7 Tel: +43 664 44 35 346 \u00B7 info@ft-tilger.at",
+      pageWidth / 2, footerY + 4, { align: "center" }
+    );
+    pdf.text(
+      "IBAN: AT61 2081 5000 0423 1474 \u00B7 BIC: STSPAT2GXXX",
+      pageWidth / 2, footerY + 8, { align: "center" }
+    );
+    pdf.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerY + 8, { align: "right" });
+  }
+}
+
+async function createPdf(html: string): Promise<Blob> {
+  const html2canvas = (await import("html2canvas")).default;
+
+  // Strip footer from HTML (we add it via jsPDF)
+  const cleanHtml = html.replace(/<div class="footer">[\s\S]*?<\/div>/, "");
 
   const container = document.createElement("div");
-  const bodyMatch = htmlWithoutFooter.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-  container.innerHTML = bodyMatch ? bodyMatch[1] : htmlWithoutFooter;
+  const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  container.innerHTML = bodyMatch ? bodyMatch[1] : cleanHtml;
 
-  const styleMatch = htmlWithoutFooter.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+  const styleMatch = cleanHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   if (styleMatch) {
     const style = document.createElement("style");
     style.textContent = styleMatch[1];
     container.prepend(style);
   }
-  container.style.width = "180mm";
-  container.style.position = "fixed";
+
+  // Render container at A4 width minus margins (180mm ≈ 680px at 96dpi)
+  container.style.width = "680px";
+  container.style.padding = "0";
+  container.style.position = "absolute";
+  container.style.left = "-9999px";
   container.style.top = "0";
-  container.style.left = "0";
-  container.style.zIndex = "-9999";
-  container.style.opacity = "0";
+  container.style.background = "white";
   document.body.appendChild(container);
 
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise(r => setTimeout(r, 300));
 
-  // Generate PDF with margins for header/footer space
-  const worker = html2pdf().set({
-    margin: [12, 15, 22, 15], // top, left, bottom, right in mm
-    image: { type: "jpeg", quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+  const canvas = await html2canvas(container, {
+    scale: 2,
+    useCORS: true,
+    letterRendering: true,
+    scrollY: 0,
+    windowWidth: 680,
   });
-
-  const pdfDoc = await worker.from(container).toPdf().get("pdf");
 
   document.body.removeChild(container);
 
-  // Add header and footer on every page via jsPDF
-  const totalPages = pdfDoc.internal.getNumberOfPages();
-  const pageWidth = pdfDoc.internal.pageSize.getWidth();
-  const pageHeight = pdfDoc.internal.pageSize.getHeight();
+  // Create PDF from canvas
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
 
-  for (let i = 1; i <= totalPages; i++) {
-    pdfDoc.setPage(i);
+  const marginLeft = 15;
+  const marginTop = 12;
+  const marginBottom = 22; // Space for footer
+  const marginRight = 15;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  const contentHeight = pageHeight - marginTop - marginBottom;
 
-    // --- Footer on every page ---
-    const footerY = pageHeight - 14;
+  // Calculate image dimensions
+  const imgWidth = contentWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    // Red line
-    pdfDoc.setDrawColor(204, 0, 0);
-    pdfDoc.setLineWidth(0.3);
-    pdfDoc.line(15, footerY, pageWidth - 15, footerY);
+  const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-    // Footer text
-    pdfDoc.setFont("helvetica", "normal");
-    pdfDoc.setFontSize(6.5);
-    pdfDoc.setTextColor(136, 136, 136);
+  // If content fits on one page
+  if (imgHeight <= contentHeight) {
+    pdf.addImage(imgData, "JPEG", marginLeft, marginTop, imgWidth, imgHeight);
+  } else {
+    // Multi-page: slice the canvas
+    const totalContentPx = canvas.height;
+    const pxPerMm = canvas.width / contentWidth;
+    const contentHeightPx = contentHeight * pxPerMm;
 
-    const footerLine1 = "Gottfried Tilger \u00B7 Fliesentechnik & Natursteinteppich \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz \u00B7 Tel: +43 664 44 35 346 \u00B7 info@ft-tilger.at";
-    const footerLine2 = "Bankverbindung: IBAN AT61 2081 5000 0423 1474 \u00B7 BIC STSPAT2GXXX";
+    let yOffset = 0;
+    let pageNum = 0;
 
-    pdfDoc.text(footerLine1, pageWidth / 2, footerY + 4, { align: "center" });
-    pdfDoc.text(footerLine2, pageWidth / 2, footerY + 8, { align: "center" });
+    while (yOffset < totalContentPx) {
+      if (pageNum > 0) pdf.addPage();
 
-    // Page number
-    pdfDoc.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerY + 8, { align: "right" });
+      const sliceHeight = Math.min(contentHeightPx, totalContentPx - yOffset);
+
+      // Create slice canvas
+      const sliceCanvas = document.createElement("canvas");
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = sliceHeight;
+      const ctx = sliceCanvas.getContext("2d")!;
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      ctx.drawImage(canvas, 0, -yOffset);
+
+      const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.95);
+      const sliceImgHeight = (sliceHeight / pxPerMm);
+
+      pdf.addImage(sliceData, "JPEG", marginLeft, marginTop, imgWidth, sliceImgHeight);
+
+      yOffset += contentHeightPx;
+      pageNum++;
+    }
   }
 
-  const blob = pdfDoc.output("blob");
-  return blob;
+  // Add footer on every page
+  addFooterToAllPages(pdf);
+
+  return pdf.output("blob");
 }
 
 export function InvoicePdfPreview({
@@ -127,7 +177,6 @@ export function InvoicePdfPreview({
     return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
   }, [pdfUrl]);
 
-  // Generate PDF immediately when dialog opens
   useEffect(() => {
     if (!open) {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -138,7 +187,6 @@ export function InvoicePdfPreview({
     generatePdf();
   }, [open, invoiceId]);
 
-  // Regenerate after save (nummer updates)
   useEffect(() => {
     if (open && saved) generatePdf();
   }, [saved, formData?.nummer]);
@@ -148,24 +196,21 @@ export function InvoicePdfPreview({
     setError(null);
     try {
       let html: string;
-      let docLabel = "";
 
       if (formDataRef.current && itemsRef.current) {
         html = buildInvoiceHtml(formDataRef.current, itemsRef.current);
-        docLabel = `${formDataRef.current.typ === "angebot" ? "Angebot" : "Rechnung"} ${formDataRef.current.nummer || ""}`.trim();
       } else if (invoiceId) {
         const { data, error: fetchErr } = await supabase.functions.invoke(
           "generate-invoice-pdf", { body: { invoiceId } }
         );
         if (fetchErr) throw fetchErr;
         html = decodeURIComponent(escape(atob(data.pdf)));
-        docLabel = "Dokument";
       } else {
         setGenerating(false);
         return;
       }
 
-      const blob = await createPdfWithHeaderFooter(html, docLabel);
+      const blob = await createPdf(html);
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       setPdfUrl(URL.createObjectURL(blob));
     } catch (err: any) {
