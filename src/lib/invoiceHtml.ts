@@ -206,7 +206,7 @@ export function buildInvoiceHtml(
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9pt; color: #333; line-height: 1.5; }
-  .page-wrap { max-width: 180mm; margin: 0 auto; padding: 0; }
+  .page-wrap { max-width: 180mm; margin: 0 auto; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
 
   /* Header — logo left, company info right (first page) */
   .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid #ccc; margin-bottom: 18px; }
@@ -255,9 +255,9 @@ export function buildInvoiceHtml(
   .bank-info-row { font-size: 8pt; color: #555; }
   .bank-info-row strong { color: #333; }
 
-  /* Footer — hidden in PDF (added by jsPDF on every page), visible only in direct browser view */
-  .footer { border-top: 1px solid #ccc; padding-top: 8px; font-size: 7pt; color: #888; line-height: 1.5; margin-top: 30px; page-break-inside: avoid; break-inside: avoid; }
-  .footer-line { text-align: center; }
+  /* Footer — pushed to bottom via flex, full width */
+  .footer { border-top: 1px solid #ccc; padding: 8px 0 4px 0; font-size: 6.5pt; color: #888; line-height: 1.6; margin-top: auto; page-break-inside: avoid; break-inside: avoid; width: 100%; }
+  .footer-line { text-align: center; white-space: nowrap; overflow: visible; }
 
   /* Storniert watermark */
   .storniert::after { content: 'STORNIERT'; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 72pt; color: rgba(204,0,0,0.08); font-weight: 900; pointer-events: none; letter-spacing: 8px; }
