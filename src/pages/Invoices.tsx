@@ -86,6 +86,8 @@ export default function Invoices() {
   const [paymentStatus, setPaymentStatus] = useState<string>("bezahlt");
   const [paymentBetrag, setPaymentBetrag] = useState("");
   const [paymentDatum, setPaymentDatum] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [paymentNotiz, setPaymentNotiz] = useState("");
+  const [existingPayments, setExistingPayments] = useState<{ betrag: number; datum: string; notiz: string | null; created_at: string }[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -143,8 +145,16 @@ export default function Invoices() {
       const inv = invoices.find(i => i.id === invoiceId);
       setPaymentInvoiceId(invoiceId);
       setPaymentStatus(newStatus);
-      setPaymentBetrag(newStatus === "bezahlt" && inv ? String(inv.brutto_summe - (inv.bezahlt_betrag || 0)) : "");
+      setPaymentBetrag(newStatus === "bezahlt" && inv ? String((inv.brutto_summe - (inv.bezahlt_betrag || 0)).toFixed(2)) : "");
       setPaymentDatum(format(new Date(), "yyyy-MM-dd"));
+      setPaymentNotiz("");
+      // Load existing payments
+      const { data: payments } = await supabase
+        .from("invoice_payments")
+        .select("betrag, datum, notiz, created_at")
+        .eq("invoice_id", invoiceId)
+        .order("datum", { ascending: true });
+      setExistingPayments(payments || []);
       setPaymentDialogOpen(true);
       return;
     }
@@ -766,30 +776,72 @@ export default function Invoices() {
         </Dialog>
         {/* Payment Dialog for Teilbezahlt/Bezahlt */}
         <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {paymentStatus === "bezahlt" ? "Zahlung erfassen" : "Teilzahlung erfassen"}
               </DialogTitle>
             </DialogHeader>
+
+            {/* Existing payments */}
+            {existingPayments.length > 0 && (
+              <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Bisherige Zahlungen:</p>
+                {existingPayments.map((p, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-sm">
+                    <div>
+                      <span className="font-medium text-green-700">€ {Number(p.betrag).toFixed(2)}</span>
+                      <span className="text-muted-foreground ml-2">{new Date(p.datum).toLocaleDateString("de-AT")}</span>
+                    </div>
+                    {p.notiz && <span className="text-xs text-muted-foreground italic">{p.notiz}</span>}
+                  </div>
+                ))}
+                <div className="border-t pt-1 flex justify-between text-sm font-medium">
+                  <span>Bereits bezahlt:</span>
+                  <span className="text-green-700">€ {existingPayments.reduce((s, p) => s + Number(p.betrag), 0).toFixed(2)}</span>
+                </div>
+                {(() => {
+                  const inv = invoices.find(i => i.id === paymentInvoiceId);
+                  const offen = (inv?.brutto_summe || 0) - existingPayments.reduce((s, p) => s + Number(p.betrag), 0);
+                  return offen > 0 ? (
+                    <div className="flex justify-between text-sm font-medium text-orange-600">
+                      <span>Noch offen:</span>
+                      <span>€ {offen.toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            {/* New payment */}
             <div className="space-y-3">
-              <div>
-                <Label>Betrag (€)</Label>
-                <Input
-                  type="number"
-                  value={paymentBetrag}
-                  onChange={(e) => setPaymentBetrag(e.target.value)}
-                  placeholder="0,00"
-                  step="0.01"
-                  min="0"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Betrag (€)</Label>
+                  <Input
+                    type="number"
+                    value={paymentBetrag}
+                    onChange={(e) => setPaymentBetrag(e.target.value)}
+                    placeholder="0,00"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <Label>Zahlungsdatum</Label>
+                  <Input
+                    type="date"
+                    value={paymentDatum}
+                    onChange={(e) => setPaymentDatum(e.target.value)}
+                  />
+                </div>
               </div>
               <div>
-                <Label>Zahlungsdatum</Label>
+                <Label>Notiz (optional)</Label>
                 <Input
-                  type="date"
-                  value={paymentDatum}
-                  onChange={(e) => setPaymentDatum(e.target.value)}
+                  value={paymentNotiz}
+                  onChange={(e) => setPaymentNotiz(e.target.value)}
+                  placeholder="z.B. Überweisung, Bar, Teilzahlung Anzahlung..."
                 />
               </div>
             </div>
@@ -803,15 +855,13 @@ export default function Invoices() {
                   return;
                 }
 
-                // Save payment record
                 await supabase.from("invoice_payments").insert({
                   invoice_id: paymentInvoiceId,
                   betrag,
                   datum: paymentDatum,
-                  notiz: paymentStatus === "bezahlt" ? "Vollständige Zahlung" : "Teilzahlung",
+                  notiz: paymentNotiz.trim() || null,
                 });
 
-                // Calculate new total paid
                 const inv = invoices.find(i => i.id === paymentInvoiceId);
                 const newBezahlt = (inv?.bezahlt_betrag || 0) + betrag;
                 const newStatus = newBezahlt >= (inv?.brutto_summe || 0) ? "bezahlt" : "teilbezahlt";
