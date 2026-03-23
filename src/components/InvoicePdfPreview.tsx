@@ -26,14 +26,38 @@ interface InvoicePdfPreviewProps {
   fileName?: string;
 }
 
-function addFooterToAllPages(pdf: jsPDF, bank: BankData = DEFAULT_BANK) {
+function addHeaderAndFooterToAllPages(pdf: jsPDF, bank: BankData = DEFAULT_BANK) {
   const totalPages = pdf.internal.getNumberOfPages();
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
   for (let i = 1; i <= totalPages; i++) {
     pdf.setPage(i);
-    // Footer starts 15mm from bottom, so everything fits
+
+    // Table header on pages 2+ (page 1 has the full header from HTML)
+    if (i > 1 && totalPages > 1) {
+      const headerY = 8;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6);
+      pdf.setTextColor(100, 100, 100);
+
+      const cols = [
+        { text: "POS.", x: 15, align: "left" as const },
+        { text: "MENGE", x: 55, align: "left" as const },
+        { text: "EINH.", x: 75, align: "left" as const },
+        { text: "BESCHREIBUNG", x: 93, align: "left" as const },
+        { text: "PREIS", x: 155, align: "left" as const },
+        { text: "GESAMT", x: 178, align: "left" as const },
+      ];
+      cols.forEach(col => pdf.text(col.text, col.x, headerY, { align: col.align }));
+
+      // Line under header
+      pdf.setDrawColor(60, 60, 60);
+      pdf.setLineWidth(0.4);
+      pdf.line(15, headerY + 2, pageWidth - 15, headerY + 2);
+    }
+
+    // Footer starts 15mm from bottom
     const footerLineY = pageHeight - 15;
 
     // Red line
@@ -103,7 +127,7 @@ async function createPdf(html: string, bank: BankData = DEFAULT_BANK): Promise<B
       document.body.removeChild(container);
 
       // Draw footer on every page
-      addFooterToAllPages(pdf, bank);
+      addHeaderAndFooterToAllPages(pdf, bank);
 
       resolve(pdf.output("blob"));
     }).catch((err: any) => {
