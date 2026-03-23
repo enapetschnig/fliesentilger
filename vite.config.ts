@@ -17,10 +17,10 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Möbel Eder',
-        short_name: 'Möbel Eder',
+        name: 'Fliesentechnik Tilger',
+        short_name: 'FT Tilger',
         description: 'Baustellendokumentation und Zeiterfassung',
-        theme_color: '#785440',
+        theme_color: '#CC0000',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
