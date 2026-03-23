@@ -5,6 +5,7 @@ import { Download, X, Save, Printer, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   buildInvoiceHtml,
+  generateEpcQrCode,
   type InvoiceHtmlData,
   type InvoiceHtmlItem,
 } from "@/lib/invoiceHtml";
@@ -226,7 +227,19 @@ export function InvoicePdfPreview({
       let html: string;
 
       if (formDataRef.current && itemsRef.current) {
-        html = buildInvoiceHtml(formDataRef.current, itemsRef.current);
+        // Generate QR code for invoices (not offers)
+        let qrDataUri: string | undefined;
+        if (formDataRef.current.typ === "rechnung" && formDataRef.current.brutto_summe > 0) {
+          try {
+            qrDataUri = await generateEpcQrCode(
+              formDataRef.current.brutto_summe,
+              formDataRef.current.nummer || "Rechnung"
+            );
+          } catch (e) {
+            console.warn("QR code generation failed:", e);
+          }
+        }
+        html = buildInvoiceHtml(formDataRef.current, itemsRef.current, qrDataUri);
       } else if (invoiceId) {
         const { data, error: fetchErr } = await supabase.functions.invoke(
           "generate-invoice-pdf", { body: { invoiceId } }

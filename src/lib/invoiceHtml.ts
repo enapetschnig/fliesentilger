@@ -1,6 +1,31 @@
 // Shared HTML generator for invoice/offer PDF preview
 // Used both client-side (preview) and matches edge function output
 
+import QRCode from "qrcode";
+
+// Generate EPC QR-Code (GiroCode) for SEPA bank transfer
+export async function generateEpcQrCode(
+  betrag: number,
+  rechnungsnummer: string
+): Promise<string> {
+  const epcData = [
+    "BCD",                    // Service Tag
+    "002",                    // Version
+    "1",                      // Encoding (UTF-8)
+    "SCT",                    // SEPA Credit Transfer
+    "STSPAT2GXXX",            // BIC
+    "Gottfried Tilger",       // Empfänger
+    "AT612081500004231474",   // IBAN (ohne Leerzeichen)
+    `EUR${betrag.toFixed(2)}`, // Betrag
+    "",                       // Purpose
+    "",                       // Structured Reference
+    rechnungsnummer,          // Unstructured Reference (Rechnungsnr.)
+    "",                       // Information
+  ].join("\n");
+
+  return await QRCode.toDataURL(epcData, { width: 150, margin: 1 });
+}
+
 export interface InvoiceHtmlData {
   typ: string;
   nummer: string;
@@ -50,7 +75,8 @@ const LOGO_IMG = `<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 
 export function buildInvoiceHtml(
   invoice: InvoiceHtmlData,
-  items: InvoiceHtmlItem[]
+  items: InvoiceHtmlItem[],
+  qrCodeDataUri?: string
 ): string {
   const isAngebot = invoice.typ === "angebot";
   const typLabel = isAngebot ? "Angebot" : "Rechnung";
@@ -302,10 +328,14 @@ ${closingText}
 
 ${
   !isAngebot
-    ? `<div class="bank-info">
+    ? `<div class="bank-info" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
   <div class="bank-info-row">
     <strong>Bankverbindung:</strong> Gottfried Tilger · IBAN: AT61 2081 5000 0423 1474 · BIC: STSPAT2GXXX
   </div>
+  ${qrCodeDataUri ? `<div style="text-align:center;flex-shrink:0;">
+    <img src="${qrCodeDataUri}" style="width:80px;height:80px;" alt="QR-Code Zahlung" />
+    <div style="font-size:6pt;color:#888;margin-top:2px;">Zahlen mit Code</div>
+  </div>` : ""}
 </div>`
     : ""
 }
