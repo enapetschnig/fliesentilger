@@ -126,7 +126,7 @@ export default function Invoices() {
   const fetchInvoices = async () => {
     const { data, error } = await supabase
       .from("invoices")
-      .select("id, typ, nummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag, archiviert")
+      .select("id, typ, nummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag, archiviert, storno_nummer, storno_datum")
       .order("datum", { ascending: false });
 
     if (error) {
@@ -416,9 +416,15 @@ export default function Invoices() {
 
   const filtered = invoices.filter(i => {
     const matchTyp = filterTyp === "alle" || i.typ === filterTyp;
-    const matchStatus = filterStatus === "alle" || i.status === filterStatus;
+    if (filterStatus === "storniert") {
+      return matchTyp && i.status === "storniert";
+    }
+    // Normal filters exclude storniert
+    const matchStatus = filterStatus === "alle" ? i.status !== "storniert" : i.status === filterStatus;
     return matchTyp && matchStatus;
   });
+
+  const storniertCount = invoices.filter(i => i.status === "storniert").length;
 
   const totalRechnungen = invoices.filter(i => i.typ === "rechnung").length;
   const totalAngebote = invoices.filter(i => i.typ === "angebot").length;
@@ -504,6 +510,9 @@ export default function Invoices() {
                     {statusFilterOptions.map(s => (
                       <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
                     ))}
+                    {storniertCount > 0 && (
+                      <SelectItem value="storniert">Storniert ({storniertCount})</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -597,6 +606,11 @@ export default function Invoices() {
                           )}
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1.5 flex-wrap">
+                              {inv.status === "storniert" ? (
+                                <Badge className="bg-red-100 text-red-800 text-xs">
+                                  Storniert{(inv as any).storno_nummer ? ` (${(inv as any).storno_nummer})` : ""}
+                                </Badge>
+                              ) : (
                               <Select
                                 value={inv.status}
                                 onValueChange={(val) => {
@@ -615,6 +629,7 @@ export default function Invoices() {
                                   ))}
                                 </SelectContent>
                               </Select>
+                              )}
                               {overdue && (
                                 <Badge variant="destructive" className="gap-1 text-xs">
                                   <AlertTriangle className="w-3 h-3" />

@@ -863,9 +863,11 @@ export default function InvoiceDetail() {
                     {form.mahnstufe > 0 && (
                       <Badge variant="destructive">Mahnung {form.mahnstufe}</Badge>
                     )}
+                    {form.status === "storniert" ? (
+                      <Badge className="bg-red-100 text-red-800">Storniert</Badge>
+                    ) : (
                     <Select value={form.status} onValueChange={(v) => {
                       updateField("status", v);
-                      // When offer is accepted, prompt to create project
                       if (v === "angenommen" && form.typ === "angebot" && !form.project_id) {
                         setCreateProjectDialogOpen(true);
                       }
@@ -889,6 +891,7 @@ export default function InvoiceDetail() {
                         )}
                       </SelectContent>
                     </Select>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {form.typ === "rechnung" && (form.status === "gesendet" || form.status === "teilbezahlt") && (
@@ -1430,9 +1433,32 @@ export default function InvoiceDetail() {
             </Button>
             {isLocked && form.typ === "rechnung" && form.status !== "storniert" && (
               <Button variant="destructive" onClick={async () => {
-                if (!confirm("Rechnung wirklich stornieren?")) return;
-                await supabase.from("invoices").update({ status: "storniert" }).eq("id", invoiceId);
-                toast({ title: "Rechnung storniert" });
+                if (!confirm("Rechnung wirklich stornieren? Dies kann nicht rückgängig gemacht werden.")) return;
+
+                // Generate fortlaufende Stornonummer
+                const year = new Date().getFullYear();
+                const { data: maxStorno } = await supabase
+                  .from("invoices")
+                  .select("storno_nummer")
+                  .like("storno_nummer", `ST-${year}-%`)
+                  .order("storno_nummer", { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+
+                let nextNum = 1;
+                if (maxStorno?.storno_nummer) {
+                  const match = maxStorno.storno_nummer.match(/ST-\d+-(\d+)/);
+                  if (match) nextNum = parseInt(match[1]) + 1;
+                }
+                const stornoNummer = `ST-${year}-${String(nextNum).padStart(3, "0")}`;
+
+                await supabase.from("invoices").update({
+                  status: "storniert",
+                  storno_nummer: stornoNummer,
+                  storno_datum: new Date().toISOString().split("T")[0],
+                }).eq("id", invoiceId);
+
+                toast({ title: "Rechnung storniert", description: `Stornonummer: ${stornoNummer}` });
                 navigate("/invoices");
               }}>Stornieren</Button>
             )}
