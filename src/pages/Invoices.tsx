@@ -184,30 +184,72 @@ export default function Invoices() {
       if (error) throw error;
       const html = decodeURIComponent(escape(atob(data.pdf)));
 
-      // Generate real PDF using html2pdf.js
+      // Strip footer (added via jsPDF on every page)
+      const cleanHtml = html.replace(/<div class="footer">[\s\S]*?<\/div>/, "");
+
       const html2pdf = (await import("html2pdf.js")).default;
+      const jsPDF = (await import("jspdf")).default;
       const container = document.createElement("div");
-      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      container.innerHTML = bodyMatch ? bodyMatch[1] : html;
-      const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+      const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      container.innerHTML = bodyMatch ? bodyMatch[1] : cleanHtml;
+      const styleMatch = cleanHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
       if (styleMatch) {
         const style = document.createElement("style");
-        style.textContent = styleMatch[1];
+        style.textContent = styleMatch[1] + `
+          .totals-section { page-break-inside: avoid !important; break-inside: avoid !important; }
+          .bank-info { page-break-inside: avoid !important; break-inside: avoid !important; }
+          .closing-text { page-break-inside: avoid !important; break-inside: avoid !important; }
+          table.items tbody tr { page-break-inside: avoid !important; }
+        `;
         container.prepend(style);
       }
-      container.style.width = "210mm";
+      container.style.width = "180mm";
+      container.style.position = "fixed";
+      container.style.top = "0";
+      container.style.left = "0";
+      container.style.zIndex = "-1";
+      container.style.background = "white";
       document.body.appendChild(container);
 
-      await html2pdf().set({
-        margin: 0,
-        filename: `${nummer}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      // Wait for images
+      const images = container.querySelectorAll("img");
+      await Promise.all(Array.from(images).map(img =>
+        img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; })
+      ));
+      await new Promise(r => setTimeout(r, 300));
+
+      const pdfDoc = await html2pdf().set({
+        margin: [12, 15, 20, 15],
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, allowTaint: true, letterRendering: true, scrollY: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      }).from(container).save();
+        pagebreak: { mode: ["avoid-all", "css"], avoid: [".totals-section", ".bank-info", ".closing-text", "tr"] },
+      }).from(container).toPdf().get("pdf");
 
       document.body.removeChild(container);
-    } catch {
+
+      // Add footer on every page
+      const totalPages = pdfDoc.internal.getNumberOfPages();
+      const pageWidth = pdfDoc.internal.pageSize.getWidth();
+      const pageHeight = pdfDoc.internal.pageSize.getHeight();
+      for (let i = 1; i <= totalPages; i++) {
+        pdfDoc.setPage(i);
+        const footerLineY = pageHeight - 15;
+        pdfDoc.setDrawColor(204, 0, 0);
+        pdfDoc.setLineWidth(0.3);
+        pdfDoc.line(15, footerLineY, pageWidth - 15, footerLineY);
+        pdfDoc.setFont("helvetica", "normal");
+        pdfDoc.setFontSize(6);
+        pdfDoc.setTextColor(136, 136, 136);
+        pdfDoc.text("Gottfried Tilger \u00B7 Fliesentechnik & Natursteinteppich \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz \u00B7 Tel: +43 664 44 35 346 \u00B7 info@ft-tilger.at", pageWidth / 2, footerLineY + 4, { align: "center" });
+        pdfDoc.text("IBAN: AT61 2081 5000 0423 1474 \u00B7 BIC: STSPAT2GXXX", pageWidth / 2, footerLineY + 7.5, { align: "center" });
+        pdfDoc.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerLineY + 7.5, { align: "right" });
+      }
+
+      // Save PDF
+      pdfDoc.save(`${nummer}.pdf`);
+    } catch (err: any) {
+      console.error("PDF download error:", err);
       toast({ variant: "destructive", title: "Fehler", description: "PDF konnte nicht erstellt werden" });
     } finally {
       setDownloadingId(null);
