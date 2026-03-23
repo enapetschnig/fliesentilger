@@ -61,8 +61,8 @@ function addFooterToAllPages(pdf: jsPDF, bank: BankData = DEFAULT_BANK) {
 async function createPdf(html: string, bank: BankData = DEFAULT_BANK): Promise<Blob> {
   const html2pdf = (await import("html2pdf.js")).default;
 
-  // Keep footer in HTML (it flows naturally at the end)
-  const cleanHtml = html;
+  // Remove the HTML footer (we draw it via jsPDF on every page instead)
+  const cleanHtml = html.replace(/<div class="footer">[\s\S]*?<\/div>[\s\S]*?<!-- \/page-wrap -->/, '</div><!-- /page-wrap -->');
 
   const container = document.createElement("div");
   const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
@@ -71,9 +71,8 @@ async function createPdf(html: string, bank: BankData = DEFAULT_BANK): Promise<B
   const styleMatch = cleanHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   if (styleMatch) {
     const style = document.createElement("style");
-    // Add page-break rules for proper splitting
     style.textContent = styleMatch[1] + `
-      .totals-section { page-break-inside: avoid !important; break-inside: avoid !important; margin-top: 8px; }
+      .totals-section { page-break-inside: avoid !important; break-inside: avoid !important; }
       .bank-info { page-break-inside: avoid !important; break-inside: avoid !important; }
       .closing-text { page-break-inside: avoid !important; break-inside: avoid !important; }
       table.items tbody tr { page-break-inside: avoid !important; }
@@ -92,20 +91,26 @@ async function createPdf(html: string, bank: BankData = DEFAULT_BANK): Promise<B
   ));
   await new Promise(r => setTimeout(r, 500));
 
-  // Use html2pdf.js — save() returns a promise, output('blob') for blob
-  const worker = html2pdf().set({
-    margin: [12, 15, 18, 15],
-    image: { type: "jpeg", quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, allowTaint: true },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: { mode: ["avoid-all", "css"], avoid: [".totals-section", ".bank-info", ".closing-text", "tr"] },
-  }).from(container);
+  // Generate PDF, then add footer on every page via jsPDF callback
+  return new Promise<Blob>((resolve, reject) => {
+    html2pdf().set({
+      margin: [12, 15, 20, 15], // top, left, bottom (space for footer), right
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["avoid-all", "css"], avoid: [".totals-section", ".bank-info", ".closing-text", "tr"] },
+    }).from(container).toPdf().get("pdf").then((pdf: any) => {
+      document.body.removeChild(container);
 
-  // Get the blob
-  const pdfBlob: Blob = await worker.toPdf().output("blob");
+      // Draw footer on every page
+      addFooterToAllPages(pdf, bank);
 
-  document.body.removeChild(container);
-  return pdfBlob;
+      resolve(pdf.output("blob"));
+    }).catch((err: any) => {
+      try { document.body.removeChild(container); } catch {}
+      reject(err);
+    });
+  });
 }
 
 export function InvoicePdfPreview({
