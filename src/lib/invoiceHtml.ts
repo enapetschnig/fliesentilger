@@ -150,7 +150,7 @@ export function buildInvoiceHtml(
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
 <style>
-  @page { size: A4; margin: 15mm 15mm 28mm 15mm; }
+  @page { size: A4; margin: 22mm 15mm 28mm 15mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .page-wrap { padding: 0; }
@@ -160,7 +160,14 @@ export function buildInvoiceHtml(
   body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9pt; color: #333; line-height: 1.5; }
   .page-wrap { max-width: 210mm; margin: 0 auto; padding: 15mm; }
 
-  /* Header — logo left, company info right */
+  /* Running header — appears on every printed page */
+  .running-header { display: none; }
+  @media print {
+    .running-header { display: flex; position: fixed; top: -8mm; left: 0; right: 0; justify-content: space-between; align-items: center; padding-bottom: 4px; border-bottom: 1px solid #ddd; font-size: 7pt; color: #888; }
+    .running-header img { height: 28px; width: auto; }
+  }
+
+  /* Header — logo left, company info right (first page) */
   .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid #ccc; margin-bottom: 18px; }
   .header-logo img { height: 50px; width: auto; }
   .header-info { text-align: right; font-size: 8pt; color: #555; line-height: 1.6; }
@@ -180,12 +187,15 @@ export function buildInvoiceHtml(
   /* Document title */
   .doc-title { font-size: 14pt; font-weight: 800; color: #1a1a1a; margin-bottom: 16px; border-bottom: 2px solid ${accent}; padding-bottom: 6px; }
 
-  /* Items table — clean like reference */
+  /* Items table — clean like reference, thead repeats on each page */
   table.items { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-  table.items thead th { border-bottom: 2px solid #333; padding: 6px 8px; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #555; background: none; }
+  table.items thead { display: table-header-group; }
+  table.items thead th { border-bottom: 2px solid #333; padding: 6px 8px; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #555; background: #fff; }
   table.items tbody td { padding: 7px 8px; border-bottom: 1px solid #e0e0e0; font-size: 8.5pt; vertical-align: top; }
   table.items tbody tr { page-break-inside: avoid; }
   table.items tbody tr:last-child td { border-bottom: 2px solid #333; }
+  table.items tfoot { display: table-footer-group; }
+  table.items tfoot td { border: none; padding: 4px 8px; font-size: 7.5pt; color: #888; font-style: italic; }
 
   /* Totals — avoid page break */
   .totals-section { page-break-inside: avoid; break-inside: avoid; }
@@ -216,6 +226,13 @@ export function buildInvoiceHtml(
 </style>
 </head>
 <body class="${invoice.status === "storniert" ? "storniert" : ""}">
+
+<!-- Running header/footer for multi-page print -->
+<div class="running-header">
+  ${LOGO_IMG}
+  <span>${typLabel}${invoice.nummer ? ` Nr. ${invoice.nummer}` : ""} · ${datumFormatted}</span>
+</div>
+
 <div class="page-wrap">
 
 ${mahnBanner}
