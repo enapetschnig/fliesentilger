@@ -1658,7 +1658,17 @@ export default function InvoiceDetail() {
             }));
             setItems(prev => mergeItems(prev, newItems));
             if (kundeData && !form.kunde_name) {
-              setForm(prev => ({ ...prev, kunde_name: kundeData.kunde_name }));
+              setForm(prev => ({
+                ...prev,
+                kunde_name: kundeData.kunde_name || prev.kunde_name,
+                kunde_adresse: kundeData.kunde_adresse || prev.kunde_adresse,
+                kunde_plz: kundeData.kunde_plz || prev.kunde_plz,
+                kunde_ort: kundeData.kunde_ort || prev.kunde_ort,
+                kunde_land: kundeData.kunde_land || prev.kunde_land,
+                kunde_email: kundeData.kunde_email || prev.kunde_email,
+                kunde_telefon: kundeData.kunde_telefon || prev.kunde_telefon,
+                kunde_uid: kundeData.kunde_uid || prev.kunde_uid,
+              }));
             }
             setImportRegieOpen(false);
             toast({ title: "Aus Regiebericht importiert", description: `${newItems.length} Positionen hinzugefügt` });

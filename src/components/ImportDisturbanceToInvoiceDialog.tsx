@@ -22,6 +22,8 @@ interface Disturbance {
 interface DisturbanceMaterial {
   material: string;
   menge: string | null;
+  einheit: string | null;
+  einzelpreis: number | null;
 }
 
 interface ImportItem {
@@ -74,7 +76,7 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
   const loadDisturbanceDetails = async (id: string) => {
     const { data: materials } = await supabase
       .from("disturbance_materials")
-      .select("material, menge")
+      .select("material, menge, einheit, einzelpreis")
       .eq("disturbance_id", id);
 
     const dist = disturbances.find(d => d.id === id);
@@ -92,13 +94,13 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
       source: "zeit",
     });
 
-    // Add materials
+    // Add materials with einheit and preis from DB
     (materials || []).forEach(m => {
       newItems.push({
         beschreibung: m.material,
         menge: parseFloat(m.menge || "1") || 1,
-        einheit: "Stk.",
-        einzelpreis: 0,
+        einheit: m.einheit || "Stk.",
+        einzelpreis: Number(m.einzelpreis) || 0,
         selected: true,
         source: "material",
       });
@@ -115,12 +117,38 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const dist = disturbances.find(d => d.id === selectedId);
     const selected = items.filter(i => i.selected);
+
+    // Try to match customer from database
+    let kundeData: any = dist ? { kunde_name: dist.kunde_name } : undefined;
+    if (dist?.kunde_name) {
+      const { data: matchedCustomer } = await supabase
+        .from("customers")
+        .select("id, name, adresse, plz, ort, land, email, telefon, uid_nummer")
+        .ilike("name", `%${dist.kunde_name}%`)
+        .limit(1)
+        .single();
+
+      if (matchedCustomer) {
+        kundeData = {
+          customer_id: matchedCustomer.id,
+          kunde_name: matchedCustomer.name,
+          kunde_adresse: matchedCustomer.adresse,
+          kunde_plz: matchedCustomer.plz,
+          kunde_ort: matchedCustomer.ort,
+          kunde_land: matchedCustomer.land,
+          kunde_email: matchedCustomer.email,
+          kunde_telefon: matchedCustomer.telefon,
+          kunde_uid: matchedCustomer.uid_nummer,
+        };
+      }
+    }
+
     onImport(
       selected.map(i => ({ beschreibung: i.beschreibung, menge: i.menge, einheit: i.einheit, einzelpreis: i.einzelpreis })),
-      dist ? { kunde_name: dist.kunde_name } : undefined,
+      kundeData,
     );
   };
 
@@ -209,7 +237,7 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
                   {item.selected && (
                     <div className="flex items-center gap-2 mt-2 ml-12 text-sm">
                       <Input type="number" value={item.menge} onChange={(e) => updateField(idx, "menge", Number(e.target.value))} className="w-20 h-7 text-right" min={0} step={0.1} />
-                      <span className="text-xs text-muted-foreground w-8">{item.einheit}</span>
+                      <Input value={item.einheit} onChange={(e) => updateField(idx, "einheit", e.target.value)} className="w-16 h-7 text-center text-xs" />
                       <span className="text-xs text-muted-foreground">×</span>
                       <Input type="number" value={item.einzelpreis} onChange={(e) => updateField(idx, "einzelpreis", Number(e.target.value))} className="w-24 h-7 text-right" min={0} step={0.01} />
                       <span className="text-xs text-muted-foreground">€</span>
