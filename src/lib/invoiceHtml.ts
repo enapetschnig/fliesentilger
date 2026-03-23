@@ -168,7 +168,7 @@ export function buildInvoiceHtml(
   /* Address row — recipient left, meta right */
   .address-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
   .recipient { flex: 1; }
-  .sender-line { font-size: 7pt; color: #999; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 8px; }
+  .sender-line { font-size: 7pt; color: #999; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 8px; display: inline-block; }
   .recipient-name { font-weight: 700; font-size: 10pt; color: #1a1a1a; }
   .recipient-addr { font-size: 9pt; color: #555; line-height: 1.6; }
   .doc-meta { text-align: right; min-width: 180px; }

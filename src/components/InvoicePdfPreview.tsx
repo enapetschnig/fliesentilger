@@ -30,7 +30,7 @@ function addFooterToAllPages(pdf: jsPDF) {
 
   for (let i = 1; i <= totalPages; i++) {
     pdf.setPage(i);
-    const footerY = pageHeight - 14;
+    const footerY = pageHeight - 20;
 
     // Red line
     pdf.setDrawColor(204, 0, 0);
@@ -44,13 +44,13 @@ function addFooterToAllPages(pdf: jsPDF) {
 
     pdf.text(
       "Gottfried Tilger \u00B7 Fliesentechnik & Natursteinteppich \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz \u00B7 Tel: +43 664 44 35 346 \u00B7 info@ft-tilger.at",
-      pageWidth / 2, footerY + 4, { align: "center" }
+      pageWidth / 2, footerY + 5, { align: "center" }
     );
     pdf.text(
-      "IBAN: AT61 2081 5000 0423 1474 \u00B7 BIC: STSPAT2GXXX",
-      pageWidth / 2, footerY + 8, { align: "center" }
+      "Bankverbindung: IBAN AT61 2081 5000 0423 1474 \u00B7 BIC STSPAT2GXXX",
+      pageWidth / 2, footerY + 9, { align: "center" }
     );
-    pdf.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerY + 8, { align: "right" });
+    pdf.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerY + 13, { align: "right" });
   }
 }
 
@@ -99,7 +99,7 @@ async function createPdf(html: string): Promise<Blob> {
 
   const marginLeft = 15;
   const marginTop = 12;
-  const marginBottom = 22; // Space for footer
+  const marginBottom = 26; // Space for footer (3 lines + spacing)
   const marginRight = 15;
   const contentWidth = pageWidth - marginLeft - marginRight;
   const contentHeight = pageHeight - marginTop - marginBottom;
@@ -146,8 +146,36 @@ async function createPdf(html: string): Promise<Blob> {
     }
   }
 
-  // Add footer on every page
+  // Add table header on pages 2+ and footer on every page
   addFooterToAllPages(pdf);
+
+  // Add table column headers on continuation pages
+  const totalPagesNow = pdf.internal.getNumberOfPages();
+  if (totalPagesNow > 1) {
+    const cols = [
+      { text: "POS.", x: marginLeft, w: 12, align: "center" as const },
+      { text: "MENGE", x: marginLeft + 12, w: 16, align: "right" as const },
+      { text: "EINH.", x: marginLeft + 28, w: 14, align: "center" as const },
+      { text: "BESCHREIBUNG", x: marginLeft + 42, w: 70, align: "left" as const },
+      { text: "PREIS", x: marginLeft + 112, w: 25, align: "right" as const },
+      { text: "GESAMT", x: marginLeft + 137, w: 28, align: "right" as const },
+    ];
+    for (let p = 2; p <= totalPagesNow; p++) {
+      pdf.setPage(p);
+      pdf.setFontSize(6);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(100, 100, 100);
+      const headerY = marginTop - 2;
+      // Line under header
+      pdf.setDrawColor(60, 60, 60);
+      pdf.setLineWidth(0.4);
+      pdf.line(marginLeft, headerY + 1, pageWidth - marginRight, headerY + 1);
+      cols.forEach(col => {
+        const textX = col.align === "right" ? col.x + col.w : col.align === "center" ? col.x + col.w / 2 : col.x;
+        pdf.text(col.text, textX, headerY, { align: col.align });
+      });
+    }
+  }
 
   return pdf.output("blob");
 }
