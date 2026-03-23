@@ -510,8 +510,11 @@ export default function InvoiceDetail() {
 
       toast({ title: "Gespeichert", description: `${form.typ === "rechnung" ? "Rechnung" : "Angebot"} wurde gespeichert` });
 
-      if (isNew) {
+      if (isNew && !previewOpen) {
         navigate(`/invoices/${savedId}`, { replace: true });
+      } else if (isNew) {
+        // Preview is open — don't navigate (would lose state), just update URL silently
+        window.history.replaceState(null, "", `/invoices/${savedId}`);
       }
 
       setSaving(false);
@@ -524,19 +527,10 @@ export default function InvoiceDetail() {
     }
   };
 
-  const handlePreview = async () => {
-    if (isLocked) {
-      // Already saved — just show preview
-      setPreviewSaved(true);
-      setPreviewOpen(true);
-      return;
-    }
-    // Save first to ensure nummer is generated
-    const success = await handleSave();
-    if (success) {
-      setPreviewSaved(true);
-      setPreviewOpen(true);
-    }
+  const handlePreview = () => {
+    // Open preview directly — don't save automatically
+    setPreviewSaved(!isNew && !!invoiceId && form.status !== "entwurf");
+    setPreviewOpen(true);
   };
 
   const handleSaveFromPreview = async () => {
