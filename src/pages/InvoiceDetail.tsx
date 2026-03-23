@@ -421,10 +421,8 @@ export default function InvoiceDetail() {
         fetchCustomers();
       }
 
-      // Auto-set status from "entwurf" to "offen"/"gesendet" on save
-      const saveStatus = form.status === "entwurf"
-        ? (form.typ === "angebot" ? "gesendet" : "gesendet")
-        : form.status;
+      // Auto-set status from "entwurf" to "offen" on save
+      const saveStatus = form.status === "entwurf" ? "offen" : form.status;
 
       const invoicePayload = {
         status: saveStatus,
@@ -876,19 +874,17 @@ export default function InvoiceDetail() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="entwurf">Entwurf</SelectItem>
-                        <SelectItem value="gesendet">Offen</SelectItem>
+                        {form.status === "entwurf" && <SelectItem value="entwurf">Entwurf</SelectItem>}
+                        <SelectItem value="offen">Offen</SelectItem>
                         {form.typ === "rechnung" ? (
                           <>
-                            <SelectItem value="bezahlt">Bezahlt</SelectItem>
                             <SelectItem value="teilbezahlt">Teilbezahlt</SelectItem>
-                            <SelectItem value="storniert">Storniert</SelectItem>
+                            <SelectItem value="bezahlt">Bezahlt</SelectItem>
                           </>
                         ) : (
                           <>
                             <SelectItem value="angenommen">Angenommen</SelectItem>
                             <SelectItem value="abgelehnt">Abgelehnt</SelectItem>
-                            <SelectItem value="verrechnet">Verrechnet</SelectItem>
                           </>
                         )}
                       </SelectContent>

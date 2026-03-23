@@ -61,8 +61,9 @@ const statusLabels: Record<string, string> = {
   offen: "Offen",
 };
 
-const rechnungStatuses = ["entwurf", "gesendet", "teilbezahlt", "bezahlt", "storniert"];
-const angebotStatuses = ["entwurf", "gesendet", "angenommen", "abgelehnt"];
+// Rechnung: Kein Entwurf zurück, kein Storniert von außen (nur in Detail-Ansicht)
+const rechnungStatuses = ["offen", "teilbezahlt", "bezahlt"];
+const angebotStatuses = ["offen", "angenommen", "abgelehnt"];
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -78,6 +79,13 @@ export default function Invoices() {
   const [rechnungStartNr, setRechnungStartNr] = useState("1");
   const [angebotStartNr, setAngebotStartNr] = useState("1");
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // Payment dialog for status change to teilbezahlt/bezahlt
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string>("bezahlt");
+  const [paymentBetrag, setPaymentBetrag] = useState("");
+  const [paymentDatum, setPaymentDatum] = useState(format(new Date(), "yyyy-MM-dd"));
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -129,6 +137,18 @@ export default function Invoices() {
 
   const handleStatusChange = async (invoiceId: string, newStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // For teilbezahlt/bezahlt: open payment dialog first
+    if (newStatus === "teilbezahlt" || newStatus === "bezahlt") {
+      const inv = invoices.find(i => i.id === invoiceId);
+      setPaymentInvoiceId(invoiceId);
+      setPaymentStatus(newStatus);
+      setPaymentBetrag(newStatus === "bezahlt" && inv ? String(inv.brutto_summe - (inv.bezahlt_betrag || 0)) : "");
+      setPaymentDatum(format(new Date(), "yyyy-MM-dd"));
+      setPaymentDialogOpen(true);
+      return;
+    }
+
     const { error } = await supabase.from("invoices").update({ status: newStatus }).eq("id", invoiceId);
     if (error) {
       toast({ variant: "destructive", title: "Fehler", description: "Status konnte nicht geändert werden" });
@@ -724,6 +744,78 @@ export default function Invoices() {
                   {exporting ? "Exportiert..." : "PDFs exportieren"}
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {/* Payment Dialog for Teilbezahlt/Bezahlt */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>
+                {paymentStatus === "bezahlt" ? "Zahlung erfassen" : "Teilzahlung erfassen"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Betrag (€)</Label>
+                <Input
+                  type="number"
+                  value={paymentBetrag}
+                  onChange={(e) => setPaymentBetrag(e.target.value)}
+                  placeholder="0,00"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label>Zahlungsdatum</Label>
+                <Input
+                  type="date"
+                  value={paymentDatum}
+                  onChange={(e) => setPaymentDatum(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Abbrechen</Button>
+              <Button onClick={async () => {
+                if (!paymentInvoiceId || !paymentBetrag) return;
+                const betrag = parseFloat(paymentBetrag);
+                if (isNaN(betrag) || betrag <= 0) {
+                  toast({ variant: "destructive", title: "Ungültiger Betrag" });
+                  return;
+                }
+
+                // Save payment record
+                await supabase.from("invoice_payments").insert({
+                  invoice_id: paymentInvoiceId,
+                  betrag,
+                  datum: paymentDatum,
+                  notiz: paymentStatus === "bezahlt" ? "Vollständige Zahlung" : "Teilzahlung",
+                });
+
+                // Calculate new total paid
+                const inv = invoices.find(i => i.id === paymentInvoiceId);
+                const newBezahlt = (inv?.bezahlt_betrag || 0) + betrag;
+                const newStatus = newBezahlt >= (inv?.brutto_summe || 0) ? "bezahlt" : "teilbezahlt";
+
+                await supabase.from("invoices").update({
+                  status: newStatus,
+                  bezahlt_betrag: newBezahlt,
+                }).eq("id", paymentInvoiceId);
+
+                setInvoices(prev => prev.map(i =>
+                  i.id === paymentInvoiceId ? { ...i, status: newStatus, bezahlt_betrag: newBezahlt } : i
+                ));
+
+                toast({
+                  title: newStatus === "bezahlt" ? "Vollständig bezahlt" : "Teilzahlung erfasst",
+                  description: `€ ${betrag.toFixed(2)} am ${new Date(paymentDatum).toLocaleDateString("de-AT")}`,
+                });
+                setPaymentDialogOpen(false);
+              }}>
+                Zahlung speichern
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
