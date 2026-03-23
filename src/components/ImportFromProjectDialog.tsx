@@ -63,12 +63,12 @@ export function ImportFromProjectDialog({ open, onClose, projectId, onImport }: 
     ]);
 
     const empMap = new Map(
-      (employees || []).map((e: any) => [e.user_id, { satz: Number(e.stundenlohn) || 0, rolle: e.position || "Monteur" }])
+      (employees || []).map((e: any) => [e.user_id, { satz: Number(e.stundenlohn) || 45, rolle: e.position || "Monteur" }])
     );
 
     const profileMap = new Map(
       (profiles || []).map((p: any) => {
-        const emp = empMap.get(p.id) || { satz: 0, rolle: "Monteur" };
+        const emp = empMap.get(p.id) || { satz: 45, rolle: "Monteur" };
         return [p.id, { name: `${p.vorname} ${p.nachname}`, satz: emp.satz, rolle: emp.rolle }];
       })
     );
