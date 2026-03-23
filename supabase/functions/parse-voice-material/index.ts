@@ -86,18 +86,19 @@ Keine zusätzlichen Erklärungen, nur JSON.`;
 
       systemPrompt = `Du bist ein Assistent für Material-Rückgabe auf einer Baustelle.
 Der Benutzer spricht auf Deutsch und beschreibt welches Material er zurückgibt.
-Er kann sich auf bestehende Positionen beziehen (z.B. "von Position 1 gebe ich 5 zurück").
+Er kann sich auf bestehende Positionen beziehen (z.B. "von Position 1 gebe ich 5 zurück") oder das Material direkt benennen.
 
 Bestehende entnommene Positionen:
 ${positionsContext}
 
-Extrahiere aus dem gesprochenen Text eine Liste von zurückgegebenen Materialien.
-Versuche die Materialien den bestehenden Positionen zuzuordnen.
-
-Gültige Einheiten: Stk., m², lfm, kg, Sack, Eimer, Pkg.
+WICHTIG: Du MUSST die Material-Namen EXAKT so verwenden wie sie in den bestehenden Positionen stehen!
+Wenn der Benutzer "Position 1" sagt, verwende den exakten Material-Namen von Position 1.
+Wenn der Benutzer das Material beschreibt (z.B. "Fliesen"), ordne es der passendsten bestehenden Position zu und verwende deren exakten Namen.
+Erstelle KEINE neuen Material-Namen — verwende NUR die Namen aus den bestehenden Positionen.
+Verwende auch die gleiche Einheit wie in der bestehenden Position.
 
 Antworte NUR mit validem JSON:
-{"items": [{"material": "Fliesen 60x60 anthrazit", "menge": 5, "einheit": "m²"}]}
+{"items": [{"material": "EXAKTER Name aus bestehender Position", "menge": 5, "einheit": "Einheit aus bestehender Position"}]}
 
 Keine zusätzlichen Erklärungen, nur JSON.`;
     }

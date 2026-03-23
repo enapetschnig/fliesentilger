@@ -1371,6 +1371,12 @@ export default function InvoiceDetail() {
                     </TableRow>
                   </TableFooter>
                 </Table>
+                <div className="flex justify-end mt-2">
+                  <Button onClick={addItem} variant="outline" size="sm" className="gap-1">
+                    <Plus className="w-4 h-4" />
+                    Position hinzufügen
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
