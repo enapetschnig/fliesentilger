@@ -169,9 +169,14 @@ export function buildInvoiceHtml(
     </div>`
       : "";
 
+  // Extract Zahlungsfrist days for closing text
+  const zahlungsTage = invoice.zahlungsbedingungen
+    ? invoice.zahlungsbedingungen.match(/(\d+)/)?.[1] || "14"
+    : "14";
+
   const closingText = isAngebot
     ? `<div class="closing-text">Wir freuen uns auf Ihren Auftrag und stehen für Rückfragen jederzeit gerne zur Verfügung.</div>`
-    : `<div class="closing-text">Wir bedanken uns für Ihren Auftrag und bitten um Überweisung des Rechnungsbetrages innerhalb der angegebenen Zahlungsfrist.</div>`;
+    : `<div class="closing-text">Wir bedanken uns für Ihren Auftrag und bitten um Überweisung des Rechnungsbetrages innerhalb von ${zahlungsTage} Tagen.</div>`;
 
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
@@ -340,14 +345,12 @@ ${
     : ""
 }
 
-<!-- Footer — appears on every page -->
+<!-- Footer -->
 <div class="footer">
   <div class="footer-line">
     Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz · Tel: +43 664 44 35 346 · info@ft-tilger.at
   </div>
-  <div class="footer-line">
-    Bankverbindung: IBAN AT61 2081 5000 0423 1474 · BIC STSPAT2GXXX
-  </div>
+  ${isAngebot ? `<div class="footer-line">IBAN: AT61 2081 5000 0423 1474 · BIC: STSPAT2GXXX</div>` : ""}
 </div>
 
 </div><!-- /page-wrap -->

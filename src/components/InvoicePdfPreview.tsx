@@ -31,27 +31,28 @@ function addFooterToAllPages(pdf: jsPDF) {
 
   for (let i = 1; i <= totalPages; i++) {
     pdf.setPage(i);
-    const footerY = pageHeight - 20;
+    // Footer starts 15mm from bottom, so everything fits
+    const footerLineY = pageHeight - 15;
 
     // Red line
     pdf.setDrawColor(204, 0, 0);
     pdf.setLineWidth(0.3);
-    pdf.line(15, footerY, pageWidth - 15, footerY);
+    pdf.line(15, footerLineY, pageWidth - 15, footerLineY);
 
     // Footer text
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(6.5);
+    pdf.setFontSize(6);
     pdf.setTextColor(136, 136, 136);
 
     pdf.text(
       "Gottfried Tilger \u00B7 Fliesentechnik & Natursteinteppich \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz \u00B7 Tel: +43 664 44 35 346 \u00B7 info@ft-tilger.at",
-      pageWidth / 2, footerY + 5, { align: "center" }
+      pageWidth / 2, footerLineY + 4, { align: "center" }
     );
     pdf.text(
-      "Bankverbindung: IBAN AT61 2081 5000 0423 1474 \u00B7 BIC STSPAT2GXXX",
-      pageWidth / 2, footerY + 9, { align: "center" }
+      "IBAN: AT61 2081 5000 0423 1474 \u00B7 BIC: STSPAT2GXXX",
+      pageWidth / 2, footerLineY + 7.5, { align: "center" }
     );
-    pdf.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerY + 13, { align: "right" });
+    pdf.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerLineY + 7.5, { align: "right" });
   }
 }
 
@@ -295,7 +296,7 @@ export function InvoicePdfPreview({
   const mustSaveFirst = onSave && !saved;
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { saved && onSavedClose ? onSavedClose() : onClose(); } }}>
       <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
         <DialogTitle className="sr-only">Dokumentvorschau</DialogTitle>
 

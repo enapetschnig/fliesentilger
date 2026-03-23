@@ -919,6 +919,51 @@ export default function Admin() {
           </Card>
         </section>
 
+        {/* ===== URLAUBSVERWALTUNG ===== */}
+        <LeaveManagement profiles={profiles.filter(p => p.is_active)} />
+
+        {/* ===== ZEITKONTO ===== */}
+        <TimeAccountManagement profiles={profiles.filter(p => p.is_active)} />
+
+        {/* ===== EINSTELLUNGEN ===== */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Einstellungen
+            </CardTitle>
+            <CardDescription>
+              E-Mail-Adressen für automatische Benachrichtigungen
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="disturbance-email">Regiebericht E-Mail-Empfänger</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="disturbance-email"
+                  type="email"
+                  placeholder="office@example.com"
+                  value={regiereportEmail}
+                  onChange={(e) => setRegiereportEmail(e.target.value)}
+                  disabled={loadingSettings}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={saveRegiereportEmail}
+                  disabled={savingSettings || loadingSettings}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {savingSettings ? "Speichert..." : "Speichern"}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Diese E-Mail-Adresse erhält alle Regieberichte als Kopie.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
       </main>
 
       {/* Employee Detail Dialog */}
@@ -1368,50 +1413,6 @@ export default function Admin() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ===== URLAUBSVERWALTUNG ===== */}
-      <LeaveManagement profiles={profiles.filter(p => p.is_active)} />
-
-      {/* ===== ZEITKONTO ===== */}
-      <TimeAccountManagement profiles={profiles.filter(p => p.is_active)} />
-
-      {/* ===== EINSTELLUNGEN SEKTION ===== */}
-      <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              Einstellungen
-            </CardTitle>
-            <CardDescription>
-              E-Mail-Adressen für automatische Benachrichtigungen
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="disturbance-email">Regiebericht E-Mail-Empfänger</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="disturbance-email"
-                  type="email"
-                  placeholder="office@example.com"
-                  value={regiereportEmail}
-                  onChange={(e) => setRegiereportEmail(e.target.value)}
-                  disabled={loadingSettings}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={saveRegiereportEmail} 
-                  disabled={savingSettings || loadingSettings}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {savingSettings ? "Speichert..." : "Speichern"}
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Diese E-Mail-Adresse erhält alle Regieberichte als Kopie.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
     </div>
   );
 }
