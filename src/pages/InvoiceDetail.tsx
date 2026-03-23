@@ -1347,6 +1347,16 @@ export default function InvoiceDetail() {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {!isLocked && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="py-1">
+                          <Button onClick={addItem} variant="ghost" size="sm" className="gap-1 text-muted-foreground">
+                            <Plus className="w-3.5 h-3.5" />
+                            Position hinzufügen
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                   <TableFooter>
                     <TableRow>
@@ -1380,12 +1390,6 @@ export default function InvoiceDetail() {
                     </TableRow>
                   </TableFooter>
                 </Table>
-                <div className="flex justify-end mt-2">
-                  <Button onClick={addItem} variant="outline" size="sm" className="gap-1">
-                    <Plus className="w-4 h-4" />
-                    Position hinzufügen
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
