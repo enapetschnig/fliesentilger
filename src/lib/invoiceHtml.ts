@@ -6,16 +6,20 @@ import QRCode from "qrcode";
 // Generate EPC QR-Code (GiroCode) for SEPA bank transfer
 export async function generateEpcQrCode(
   betrag: number,
-  rechnungsnummer: string
+  rechnungsnummer: string,
+  bank?: BankData
 ): Promise<string> {
+  const b = bank || DEFAULT_BANK;
+  const ibanClean = b.iban.replace(/\s/g, ""); // IBAN ohne Leerzeichen
+
   const epcData = [
     "BCD",                    // Service Tag
     "002",                    // Version
     "1",                      // Encoding (UTF-8)
     "SCT",                    // SEPA Credit Transfer
-    "STSPAT2GXXX",            // BIC
-    "Gottfried Tilger",       // Empfänger
-    "AT612081500004231474",   // IBAN (ohne Leerzeichen)
+    b.bic,                    // BIC
+    b.kontoinhaber,           // Empfänger
+    ibanClean,                // IBAN (ohne Leerzeichen)
     `EUR${betrag.toFixed(2)}`, // Betrag
     "",                       // Purpose
     "",                       // Structured Reference
@@ -25,6 +29,18 @@ export async function generateEpcQrCode(
 
   return await QRCode.toDataURL(epcData, { width: 150, margin: 1 });
 }
+
+export interface BankData {
+  kontoinhaber: string;
+  iban: string;
+  bic: string;
+}
+
+export const DEFAULT_BANK: BankData = {
+  kontoinhaber: "Gottfried Tilger",
+  iban: "AT61 2081 5000 0423 1474",
+  bic: "STSPAT2GXXX",
+};
 
 export interface InvoiceHtmlData {
   typ: string;
@@ -76,8 +92,10 @@ const LOGO_IMG = `<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 export function buildInvoiceHtml(
   invoice: InvoiceHtmlData,
   items: InvoiceHtmlItem[],
-  qrCodeDataUri?: string
+  qrCodeDataUri?: string,
+  bank?: BankData
 ): string {
+  const b = bank || DEFAULT_BANK;
   const isAngebot = invoice.typ === "angebot";
   const typLabel = isAngebot ? "Angebot" : "Rechnung";
   const accent = "#CC0000";
@@ -335,7 +353,7 @@ ${
   !isAngebot
     ? `<div class="bank-info" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
   <div class="bank-info-row">
-    <strong>Bankverbindung:</strong> Gottfried Tilger · IBAN: AT61 2081 5000 0423 1474 · BIC: STSPAT2GXXX
+    <strong>Bankverbindung:</strong> ${b.kontoinhaber} · IBAN: ${b.iban} · BIC: ${b.bic}
   </div>
   ${qrCodeDataUri ? `<div style="text-align:center;flex-shrink:0;">
     <img src="${qrCodeDataUri}" style="width:80px;height:80px;" alt="QR-Code Zahlung" />
@@ -350,7 +368,7 @@ ${
   <div class="footer-line">
     Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz · Tel: +43 664 44 35 346 · info@ft-tilger.at
   </div>
-  ${isAngebot ? `<div class="footer-line">IBAN: AT61 2081 5000 0423 1474 · BIC: STSPAT2GXXX</div>` : ""}
+  ${isAngebot ? `<div class="footer-line">IBAN: ${b.iban} · BIC: ${b.bic}</div>` : ""}
 </div>
 
 </div><!-- /page-wrap -->

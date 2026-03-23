@@ -6,8 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   buildInvoiceHtml,
   generateEpcQrCode,
+  DEFAULT_BANK,
   type InvoiceHtmlData,
   type InvoiceHtmlItem,
+  type BankData,
 } from "@/lib/invoiceHtml";
 import jsPDF from "jspdf";
 
@@ -24,7 +26,7 @@ interface InvoicePdfPreviewProps {
   fileName?: string;
 }
 
-function addFooterToAllPages(pdf: jsPDF) {
+function addFooterToAllPages(pdf: jsPDF, bank: BankData = DEFAULT_BANK) {
   const totalPages = pdf.internal.getNumberOfPages();
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -49,14 +51,14 @@ function addFooterToAllPages(pdf: jsPDF) {
       pageWidth / 2, footerLineY + 4, { align: "center" }
     );
     pdf.text(
-      "IBAN: AT61 2081 5000 0423 1474 \u00B7 BIC: STSPAT2GXXX",
+      `IBAN: ${bank.iban} \u00B7 BIC: ${bank.bic}`,
       pageWidth / 2, footerLineY + 7.5, { align: "center" }
     );
     pdf.text(`Seite ${i} von ${totalPages}`, pageWidth - 15, footerLineY + 7.5, { align: "right" });
   }
 }
 
-async function createPdf(html: string): Promise<Blob> {
+async function createPdf(html: string, bank: BankData = DEFAULT_BANK): Promise<Blob> {
   const html2canvas = (await import("html2canvas")).default;
 
   // Strip footer from HTML (we add it via jsPDF)
@@ -161,7 +163,7 @@ async function createPdf(html: string): Promise<Blob> {
   }
 
   // Add table header on pages 2+ and footer on every page
-  addFooterToAllPages(pdf);
+  addFooterToAllPages(pdf, bank);
 
   // Add table column headers on continuation pages
   const totalPagesNow = pdf.internal.getNumberOfPages();
@@ -239,6 +241,22 @@ export function InvoicePdfPreview({
     try {
       let html: string;
 
+      // Load bank data from settings
+      let bankData: BankData = { ...DEFAULT_BANK };
+      try {
+        const { data: bankSettings } = await supabase
+          .from("app_settings")
+          .select("key, value")
+          .in("key", ["bank_kontoinhaber", "bank_iban", "bank_bic"]);
+        if (bankSettings) {
+          bankSettings.forEach((row: any) => {
+            if (row.key === "bank_kontoinhaber") bankData.kontoinhaber = row.value;
+            if (row.key === "bank_iban") bankData.iban = row.value;
+            if (row.key === "bank_bic") bankData.bic = row.value;
+          });
+        }
+      } catch (e) { /* use defaults */ }
+
       if (formDataRef.current && itemsRef.current) {
         // Generate QR code for invoices (not offers)
         let qrDataUri: string | undefined;
@@ -246,13 +264,14 @@ export function InvoicePdfPreview({
           try {
             qrDataUri = await generateEpcQrCode(
               formDataRef.current.brutto_summe,
-              formDataRef.current.nummer || "Rechnung"
+              formDataRef.current.nummer || "Rechnung",
+              bankData
             );
           } catch (e) {
             console.warn("QR code generation failed:", e);
           }
         }
-        html = buildInvoiceHtml(formDataRef.current, itemsRef.current, qrDataUri);
+        html = buildInvoiceHtml(formDataRef.current, itemsRef.current, qrDataUri, bankData);
       } else if (invoiceId) {
         const { data, error: fetchErr } = await supabase.functions.invoke(
           "generate-invoice-pdf", { body: { invoiceId } }
@@ -264,7 +283,7 @@ export function InvoicePdfPreview({
         return;
       }
 
-      const blob = await createPdf(html);
+      const blob = await createPdf(html, bankData);
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       setPdfUrl(URL.createObjectURL(blob));
     } catch (err: any) {

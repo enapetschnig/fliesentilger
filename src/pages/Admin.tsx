@@ -100,6 +100,9 @@ export default function Admin() {
 
   // App settings states
   const [regiereportEmail, setRegiereportEmail] = useState("");
+  const [bankKontoinhaber, setBankKontoinhaber] = useState("Gottfried Tilger");
+  const [bankIban, setBankIban] = useState("AT61 2081 5000 0423 1474");
+  const [bankBic, setBankBic] = useState("STSPAT2GXXX");
   const [savingSettings, setSavingSettings] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
@@ -108,14 +111,18 @@ export default function Admin() {
     try {
       const { data, error } = await supabase
         .from("app_settings")
-        .select("value")
-        .eq("key", "disturbance_report_email")
-        .maybeSingle();
+        .select("key, value")
+        .in("key", ["disturbance_report_email", "bank_kontoinhaber", "bank_iban", "bank_bic"]);
 
       if (error) {
         console.error("Error fetching app settings:", error);
       } else if (data) {
-        setRegiereportEmail(data.value);
+        data.forEach((row: any) => {
+          if (row.key === "disturbance_report_email") setRegiereportEmail(row.value);
+          if (row.key === "bank_kontoinhaber") setBankKontoinhaber(row.value);
+          if (row.key === "bank_iban") setBankIban(row.value);
+          if (row.key === "bank_bic") setBankBic(row.value);
+        });
       }
     } catch (err) {
       console.error("Error fetching app settings:", err);
@@ -960,6 +967,49 @@ export default function Admin() {
               <p className="text-sm text-muted-foreground">
                 Diese E-Mail-Adresse erhält alle Regieberichte als Kopie.
               </p>
+            </div>
+
+            {/* Bankverbindung */}
+            <div className="border-t pt-4 space-y-3">
+              <h4 className="font-medium text-sm">Bankverbindung</h4>
+              <p className="text-sm text-muted-foreground">
+                Wird auf allen PDFs (Rechnungen, Angebote, Regieberichte) und im QR-Code verwendet.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label>Kontoinhaber</Label>
+                  <Input value={bankKontoinhaber} onChange={(e) => setBankKontoinhaber(e.target.value)} disabled={loadingSettings} />
+                </div>
+                <div className="space-y-1">
+                  <Label>IBAN</Label>
+                  <Input value={bankIban} onChange={(e) => setBankIban(e.target.value)} disabled={loadingSettings} placeholder="AT..." />
+                </div>
+                <div className="space-y-1">
+                  <Label>BIC</Label>
+                  <Input value={bankBic} onChange={(e) => setBankBic(e.target.value)} disabled={loadingSettings} placeholder="z.B. STSPAT2GXXX" />
+                </div>
+              </div>
+              <Button
+                onClick={async () => {
+                  setSavingSettings(true);
+                  try {
+                    await supabase.from("app_settings").upsert([
+                      { key: "bank_kontoinhaber", value: bankKontoinhaber, updated_at: new Date().toISOString() },
+                      { key: "bank_iban", value: bankIban, updated_at: new Date().toISOString() },
+                      { key: "bank_bic", value: bankBic, updated_at: new Date().toISOString() },
+                    ]);
+                    toast({ title: "Bankverbindung gespeichert" });
+                  } catch (err: any) {
+                    toast({ variant: "destructive", title: "Fehler", description: err.message });
+                  } finally {
+                    setSavingSettings(false);
+                  }
+                }}
+                disabled={savingSettings || loadingSettings}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Bankverbindung speichern
+              </Button>
             </div>
           </CardContent>
         </Card>
