@@ -59,9 +59,9 @@ function addFooterToAllPages(pdf: jsPDF, bank: BankData = DEFAULT_BANK) {
 }
 
 async function createPdf(html: string, bank: BankData = DEFAULT_BANK): Promise<Blob> {
-  const html2canvas = (await import("html2canvas")).default;
+  const html2pdf = (await import("html2pdf.js")).default;
 
-  // Strip footer from HTML (we add it via jsPDF)
+  // Strip footer from HTML (we add it via jsPDF on every page)
   const cleanHtml = html.replace(/<div class="footer">[\s\S]*?<\/div>/, "");
 
   const container = document.createElement("div");
@@ -71,129 +71,46 @@ async function createPdf(html: string, bank: BankData = DEFAULT_BANK): Promise<B
   const styleMatch = cleanHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   if (styleMatch) {
     const style = document.createElement("style");
-    style.textContent = styleMatch[1];
+    // Add page-break rules for proper splitting
+    style.textContent = styleMatch[1] + `
+      .totals-section { page-break-inside: avoid !important; break-inside: avoid !important; margin-top: 8px; }
+      .bank-info { page-break-inside: avoid !important; break-inside: avoid !important; }
+      .closing-text { page-break-inside: avoid !important; break-inside: avoid !important; }
+      table.items tbody tr { page-break-inside: avoid !important; }
+    `;
     container.prepend(style);
   }
 
-  // Render container visible but behind everything
-  container.style.width = "680px";
-  container.style.padding = "0";
+  container.style.width = "180mm";
   container.style.position = "fixed";
   container.style.top = "0";
   container.style.left = "0";
   container.style.zIndex = "-1";
   container.style.background = "white";
-  container.style.overflow = "visible";
   document.body.appendChild(container);
 
-  // Wait for images (especially base64 logo) to load
+  // Wait for images to load
   const images = container.querySelectorAll("img");
   await Promise.all(Array.from(images).map(img =>
-    img.complete ? Promise.resolve() : new Promise(resolve => {
-      img.onload = resolve;
-      img.onerror = resolve;
-    })
+    img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; })
   ));
-  await new Promise(r => setTimeout(r, 200));
+  await new Promise(r => setTimeout(r, 300));
 
-  const canvas = await html2canvas(container, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    letterRendering: true,
-    scrollY: 0,
-    width: 680,
-    windowWidth: 680,
-  });
+  // Use html2pdf.js — it handles page breaks properly
+  const pdfDoc = await html2pdf().set({
+    margin: [12, 15, 20, 15], // top, left, bottom, right mm — bottom leaves room for footer
+    image: { type: "jpeg", quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, allowTaint: true, letterRendering: true, scrollY: 0 },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    pagebreak: { mode: ["avoid-all", "css"], before: ".page-break-before", after: ".page-break-after", avoid: [".totals-section", ".bank-info", ".closing-text", "tr"] },
+  }).from(container).toPdf().get("pdf");
 
   document.body.removeChild(container);
 
-  // Create PDF from canvas
-  const pdf = new jsPDF("p", "mm", "a4");
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
+  // Add footer on every page via jsPDF
+  addFooterToAllPages(pdfDoc, bank);
 
-  const marginLeft = 15;
-  const marginTop = 12;
-  const marginBottom = 26; // Space for footer (3 lines + spacing)
-  const marginRight = 15;
-  const contentWidth = pageWidth - marginLeft - marginRight;
-  const contentHeight = pageHeight - marginTop - marginBottom;
-
-  // Calculate image dimensions
-  const imgWidth = contentWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-  const imgData = canvas.toDataURL("image/jpeg", 0.95);
-
-  // If content fits on one page
-  if (imgHeight <= contentHeight) {
-    pdf.addImage(imgData, "JPEG", marginLeft, marginTop, imgWidth, imgHeight);
-  } else {
-    // Multi-page: slice the canvas
-    const totalContentPx = canvas.height;
-    const pxPerMm = canvas.width / contentWidth;
-    const contentHeightPx = contentHeight * pxPerMm;
-
-    let yOffset = 0;
-    let pageNum = 0;
-
-    while (yOffset < totalContentPx) {
-      if (pageNum > 0) pdf.addPage();
-
-      const sliceHeight = Math.min(contentHeightPx, totalContentPx - yOffset);
-
-      // Create slice canvas
-      const sliceCanvas = document.createElement("canvas");
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = sliceHeight;
-      const ctx = sliceCanvas.getContext("2d")!;
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(canvas, 0, -yOffset);
-
-      const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.95);
-      const sliceImgHeight = (sliceHeight / pxPerMm);
-
-      pdf.addImage(sliceData, "JPEG", marginLeft, marginTop, imgWidth, sliceImgHeight);
-
-      yOffset += contentHeightPx;
-      pageNum++;
-    }
-  }
-
-  // Add table header on pages 2+ and footer on every page
-  addFooterToAllPages(pdf, bank);
-
-  // Add table column headers on continuation pages
-  const totalPagesNow = pdf.internal.getNumberOfPages();
-  if (totalPagesNow > 1) {
-    const cols = [
-      { text: "POS.", x: marginLeft, w: 12, align: "center" as const },
-      { text: "MENGE", x: marginLeft + 12, w: 16, align: "right" as const },
-      { text: "EINH.", x: marginLeft + 28, w: 14, align: "center" as const },
-      { text: "BESCHREIBUNG", x: marginLeft + 42, w: 70, align: "left" as const },
-      { text: "PREIS", x: marginLeft + 112, w: 25, align: "right" as const },
-      { text: "GESAMT", x: marginLeft + 137, w: 28, align: "right" as const },
-    ];
-    for (let p = 2; p <= totalPagesNow; p++) {
-      pdf.setPage(p);
-      pdf.setFontSize(6);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(100, 100, 100);
-      const headerY = marginTop - 2;
-      // Line under header
-      pdf.setDrawColor(60, 60, 60);
-      pdf.setLineWidth(0.4);
-      pdf.line(marginLeft, headerY + 1, pageWidth - marginRight, headerY + 1);
-      cols.forEach(col => {
-        const textX = col.align === "right" ? col.x + col.w : col.align === "center" ? col.x + col.w / 2 : col.x;
-        pdf.text(col.text, textX, headerY, { align: col.align });
-      });
-    }
-  }
-
-  return pdf.output("blob");
+  return pdfDoc.output("blob");
 }
 
 export function InvoicePdfPreview({
