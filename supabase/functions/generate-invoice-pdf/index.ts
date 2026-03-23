@@ -80,10 +80,10 @@ function buildHtml(invoice: any, items: any[]): string {
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer}</title>
 <style>
-  @page { size: A4; margin: 20mm 25mm 42mm 25mm; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } }
+  @page { size: A4; margin: 20mm 22mm 34mm 22mm; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0; } .no-print { display: none !important; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #333; line-height: 1.5; padding: 0; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9pt; color: #333; line-height: 1.5; max-width: 210mm; margin: 0 auto; padding: 20mm 22mm 34mm 22mm; }
 
   .header-bar { padding: 10px 0 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #CC0000; margin-bottom: 16px; }
   .header-left img { height: 54px; width: auto; }
