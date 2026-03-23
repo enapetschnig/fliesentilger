@@ -521,9 +521,13 @@ export default function InvoiceDetail() {
     }
   };
 
-  const handlePreview = () => {
-    setPreviewSaved(!isNew && !!invoiceId);
-    setPreviewOpen(true);
+  const handlePreview = async () => {
+    // Always save first to ensure nummer is generated
+    const success = await handleSave();
+    if (success) {
+      setPreviewSaved(true);
+      setPreviewOpen(true);
+    }
   };
 
   const handleSaveFromPreview = async () => {
