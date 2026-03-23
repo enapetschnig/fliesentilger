@@ -156,6 +156,7 @@ export default function InvoiceDetail() {
   const [importOfferOpen, setImportOfferOpen] = useState(false);
   const [importTimeOpen, setImportTimeOpen] = useState(false);
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
 
   // Payment tracking
   interface Payment { id: string; betrag: number; datum: string; notizen: string | null; }
@@ -1700,39 +1701,64 @@ export default function InvoiceDetail() {
         />
 
         {/* Create Project Dialog (when offer accepted) */}
-        <AlertDialog open={createProjectDialogOpen} onOpenChange={setCreateProjectDialogOpen}>
+        <AlertDialog open={createProjectDialogOpen} onOpenChange={(open) => {
+          setCreateProjectDialogOpen(open);
+          if (open) setNewProjectName(`${form.kunde_name} - ${form.nummer}`);
+        }}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Projekt automatisch erstellen?</AlertDialogTitle>
+              <AlertDialogTitle>Projekt erstellen</AlertDialogTitle>
               <AlertDialogDescription>
-                Das Angebot wurde angenommen. Soll automatisch ein Projekt mit den Kundendaten erstellt werden?
+                Das Angebot wurde angenommen. Projekt mit den Kundendaten erstellen?
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="py-2">
+              <Label>Projektname</Label>
+              <Input
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Projektname eingeben"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Kunde: {form.kunde_name} · {form.kunde_plz} {form.kunde_ort}
+              </p>
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Nein, danke</AlertDialogCancel>
               <AlertDialogAction onClick={async () => {
                 try {
-                  const projektName = `${form.kunde_name} - ${form.nummer}`;
+                  // Find customer_id by matching name
+                  let customerId = null;
+                  if (form.kunde_name) {
+                    const { data: matched } = await supabase
+                      .from("customers")
+                      .select("id")
+                      .ilike("name", `%${form.kunde_name}%`)
+                      .limit(1)
+                      .maybeSingle();
+                    if (matched) customerId = matched.id;
+                  }
+
                   const { data: newProject, error } = await supabase
                     .from("projects")
                     .insert({
-                      name: projektName,
+                      name: newProjectName || `${form.kunde_name} - ${form.nummer}`,
                       adresse: [form.kunde_adresse, form.kunde_plz, form.kunde_ort].filter(Boolean).join(", "),
                       plz: form.kunde_plz || null,
+                      customer_id: customerId,
                       status: "aktiv",
                     })
                     .select("id")
                     .single();
                   if (error) throw error;
                   updateField("project_id", newProject.id);
-                  // Refresh projects list
                   const { data: projectsData } = await supabase
                     .from("projects")
                     .select("id, name")
                     .eq("status", "aktiv")
                     .order("name");
                   if (projectsData) setProjects(projectsData);
-                  toast({ title: "Projekt erstellt", description: `"${projektName}" wurde angelegt und verknüpft.` });
+                  toast({ title: "Projekt erstellt", description: `"${newProjectName}" wurde angelegt und verknüpft.` });
                 } catch (err: any) {
                   toast({ variant: "destructive", title: "Fehler", description: err.message });
                 }

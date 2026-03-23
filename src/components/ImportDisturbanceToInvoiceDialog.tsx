@@ -199,6 +199,17 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
               ← Anderen Regiebericht wählen
             </Button>
 
+            {/* Durchgeführte Arbeiten (Info, keine Position) */}
+            {(() => {
+              const dist = disturbances.find(d => d.id === selectedId);
+              return dist?.beschreibung ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-blue-800 mb-1">Durchgeführte Arbeiten:</p>
+                  <p className="text-sm text-blue-700">{dist.beschreibung}</p>
+                </div>
+              ) : null;
+            })()}
+
             {/* Stundensatz */}
             <div className="flex items-center gap-3 pb-2 border-b">
               <label className="text-sm font-medium whitespace-nowrap">Stundensatz:</label>

@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, User, Mail, Phone, MapPin, FileText, Package, Plus, Trash2 } from "lucide-react";
+import { Calendar, Clock, User, Mail, Phone, MapPin, FileText, Package, Plus, Trash2, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +18,18 @@ type MaterialEntry = {
   id: string;
   material: string;
   menge: string;
+  einheit: string;
+};
+
+type CustomerOption = {
+  id: string;
+  name: string;
+  adresse: string | null;
+  plz: string | null;
+  ort: string | null;
+  email: string | null;
+  telefon: string | null;
+  uid_nummer: string | null;
 };
 
 type DisturbanceFormProps = {
@@ -49,6 +64,8 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
     kundeName: "",
     kundeEmail: "",
     kundeAdresse: "",
+    kundePlz: "",
+    kundeOrt: "",
     kundeTelefon: "",
     beschreibung: "",
     notizen: "",
@@ -56,6 +73,15 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
 
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [materials, setMaterials] = useState<MaterialEntry[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      supabase.from("customers").select("id, name, adresse, plz, ort, email, telefon, uid_nummer").order("name")
+        .then(({ data }) => { if (data) setCustomers(data); });
+    }
+  }, [open]);
 
   useEffect(() => {
     if (editData) {
@@ -129,14 +155,14 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
   };
 
   const addMaterial = () => {
-    setMaterials([...materials, { id: crypto.randomUUID(), material: "", menge: "" }]);
+    setMaterials([...materials, { id: crypto.randomUUID(), material: "", menge: "", einheit: "Stk." }]);
   };
 
   const removeMaterial = (id: string) => {
     setMaterials(materials.filter(m => m.id !== id));
   };
 
-  const updateMaterial = (id: string, field: "material" | "menge", value: string) => {
+  const updateMaterial = (id: string, field: "material" | "menge" | "einheit", value: string) => {
     setMaterials(materials.map(m => m.id === id ? { ...m, [field]: value } : m));
   };
 
@@ -184,6 +210,8 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
       kunde_name: formData.kundeName.trim(),
       kunde_email: formData.kundeEmail.trim() || null,
       kunde_adresse: formData.kundeAdresse.trim() || null,
+      kunde_plz: formData.kundePlz.trim() || null,
+      kunde_ort: formData.kundeOrt.trim() || null,
       kunde_telefon: formData.kundeTelefon.trim() || null,
       beschreibung: formData.beschreibung.trim(),
       notizen: formData.notizen.trim() || null,
@@ -248,6 +276,7 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
             user_id: user.id,
             material: m.material.trim(),
             menge: m.menge.trim() || null,
+            einheit: m.einheit || "Stk.",
           }))
         );
       }
@@ -318,6 +347,7 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
           user_id: userId,
           material: m.material.trim(),
           menge: m.menge.trim() || null,
+          einheit: m.einheit || "Stk.",
         }))
       );
     }
@@ -396,10 +426,53 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
 
           {/* Customer Section */}
           <div className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Kundendaten
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Kundendaten
+              </h3>
+              <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Search className="w-3.5 h-3.5" />
+                    Kunde auswählen
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="end">
+                  <Command>
+                    <CommandInput placeholder="Kunde suchen..." />
+                    <CommandList>
+                      <CommandEmpty>Kein Kunde gefunden</CommandEmpty>
+                      <CommandGroup>
+                        {customers.map((c) => (
+                          <CommandItem
+                            key={c.id}
+                            value={c.name}
+                            onSelect={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                kundeName: c.name,
+                                kundeEmail: c.email || "",
+                                kundeAdresse: c.adresse || "",
+                                kundePlz: c.plz || "",
+                                kundeOrt: c.ort || "",
+                                kundeTelefon: c.telefon || "",
+                              }));
+                              setCustomerPopoverOpen(false);
+                            }}
+                          >
+                            <div>
+                              <p className="font-medium text-sm">{c.name}</p>
+                              {c.ort && <p className="text-xs text-muted-foreground">{c.plz} {c.ort}</p>}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="space-y-3">
               <div>
                 <Label htmlFor="kundeName">Kundenname *</Label>
@@ -411,40 +484,64 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="kundeEmail" className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> E-Mail (optional)
-                </Label>
-                <Input
-                  id="kundeEmail"
-                  type="email"
-                  value={formData.kundeEmail}
-                  onChange={(e) => setFormData({ ...formData, kundeEmail: e.target.value })}
-                  placeholder="kunde@email.at"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="kundeAdresse" className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> Adresse
+                  </Label>
+                  <Input
+                    id="kundeAdresse"
+                    value={formData.kundeAdresse}
+                    onChange={(e) => setFormData({ ...formData, kundeAdresse: e.target.value })}
+                    placeholder="Musterstraße 1"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="kundePlz">PLZ</Label>
+                    <Input
+                      id="kundePlz"
+                      value={formData.kundePlz}
+                      onChange={(e) => setFormData({ ...formData, kundePlz: e.target.value })}
+                      placeholder="8831"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="kundeOrt">Ort</Label>
+                    <Input
+                      id="kundeOrt"
+                      value={formData.kundeOrt}
+                      onChange={(e) => setFormData({ ...formData, kundeOrt: e.target.value })}
+                      placeholder="Niederwölz"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="kundeTelefon" className="flex items-center gap-1">
-                  <Phone className="h-3 w-3" /> Telefon (optional)
-                </Label>
-                <Input
-                  id="kundeTelefon"
-                  type="tel"
-                  value={formData.kundeTelefon}
-                  onChange={(e) => setFormData({ ...formData, kundeTelefon: e.target.value })}
-                  placeholder="+43 664 ..."
-                />
-              </div>
-              <div>
-                <Label htmlFor="kundeAdresse" className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> Adresse (optional)
-                </Label>
-                <Input
-                  id="kundeAdresse"
-                  value={formData.kundeAdresse}
-                  onChange={(e) => setFormData({ ...formData, kundeAdresse: e.target.value })}
-                  placeholder="Musterstraße 1, 9020 Klagenfurt"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="kundeEmail" className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> E-Mail
+                  </Label>
+                  <Input
+                    id="kundeEmail"
+                    type="email"
+                    value={formData.kundeEmail}
+                    onChange={(e) => setFormData({ ...formData, kundeEmail: e.target.value })}
+                    placeholder="kunde@email.at"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="kundeTelefon" className="flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> Telefon
+                  </Label>
+                  <Input
+                    id="kundeTelefon"
+                    type="tel"
+                    value={formData.kundeTelefon}
+                    onChange={(e) => setFormData({ ...formData, kundeTelefon: e.target.value })}
+                    placeholder="+43 664 ..."
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -516,8 +613,22 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
                       placeholder="Menge"
                       value={mat.menge}
                       onChange={(e) => updateMaterial(mat.id, "menge", e.target.value)}
-                      className="w-24"
+                      className="w-20"
+                      type="number"
+                      step="0.1"
                     />
+                    <Select value={mat.einheit} onValueChange={(v) => updateMaterial(mat.id, "einheit", v)}>
+                      <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Stk.">Stk.</SelectItem>
+                        <SelectItem value="m²">m²</SelectItem>
+                        <SelectItem value="lfm">lfm</SelectItem>
+                        <SelectItem value="kg">kg</SelectItem>
+                        <SelectItem value="Sack">Sack</SelectItem>
+                        <SelectItem value="Eimer">Eimer</SelectItem>
+                        <SelectItem value="Pkg.">Pkg.</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       type="button"
                       variant="ghost"
