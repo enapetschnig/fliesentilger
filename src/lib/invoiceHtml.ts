@@ -150,10 +150,15 @@ export function buildInvoiceHtml(
   return `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
 <style>
-  @page { size: A4; margin: 20mm 22mm 34mm 22mm; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0; } .no-print { display: none !important; } }
+  @page { size: A4; margin: 15mm 15mm 28mm 15mm; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page-wrap { padding: 0; }
+    .no-print { display: none !important; }
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9pt; color: #333; line-height: 1.5; max-width: 210mm; margin: 0 auto; padding: 20mm 22mm 34mm 22mm; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9pt; color: #333; line-height: 1.5; }
+  .page-wrap { max-width: 210mm; margin: 0 auto; padding: 15mm; }
 
   /* Header — logo left, company info right */
   .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid #ccc; margin-bottom: 18px; }
@@ -199,12 +204,10 @@ export function buildInvoiceHtml(
   .bank-info-row { font-size: 8pt; color: #555; }
   .bank-info-row strong { color: #333; }
 
-  /* Footer — fixed at bottom of every page */
+  /* Footer */
+  .footer { border-top: 1px solid #ccc; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; margin-top: 24px; }
   @media print {
-    .footer { position: fixed; bottom: -24mm; left: 0; right: 0; border-top: 1px solid #ccc; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; }
-  }
-  @media screen {
-    .footer { border-top: 1px solid #ccc; padding-top: 6px; font-size: 7pt; color: #888; line-height: 1.5; margin-top: 30px; }
+    .footer { position: fixed; bottom: -18mm; left: 0; right: 0; margin-top: 0; }
   }
   .footer-line { text-align: center; }
 
@@ -213,6 +216,7 @@ export function buildInvoiceHtml(
 </style>
 </head>
 <body class="${invoice.status === "storniert" ? "storniert" : ""}">
+<div class="page-wrap">
 
 ${mahnBanner}
 
@@ -316,5 +320,6 @@ ${
   </div>
 </div>
 
+</div><!-- /page-wrap -->
 </body></html>`;
 }
