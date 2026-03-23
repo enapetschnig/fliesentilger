@@ -194,6 +194,9 @@ export default function InvoiceDetail() {
     mahnstufe: 0,
   });
 
+  // Locked = already saved (not draft) — can only view, download, storno/delete
+  const isLocked = !isNew && !!invoiceId && form.status !== "entwurf";
+
   useEffect(() => {
     fetchProjects();
     fetchTemplates();
@@ -522,7 +525,13 @@ export default function InvoiceDetail() {
   };
 
   const handlePreview = async () => {
-    // Always save first to ensure nummer is generated
+    if (isLocked) {
+      // Already saved — just show preview
+      setPreviewSaved(true);
+      setPreviewOpen(true);
+      return;
+    }
+    // Save first to ensure nummer is generated
     const success = await handleSave();
     if (success) {
       setPreviewSaved(true);
@@ -1420,10 +1429,29 @@ export default function InvoiceDetail() {
 
           {/* Actions */}
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => navigate("/invoices")}>Abbrechen</Button>
+            <Button variant="outline" onClick={() => navigate("/invoices")}>
+              {isLocked ? "Zurück" : "Abbrechen"}
+            </Button>
+            {isLocked && form.typ === "rechnung" && form.status !== "storniert" && (
+              <Button variant="destructive" onClick={async () => {
+                if (!confirm("Rechnung wirklich stornieren?")) return;
+                await supabase.from("invoices").update({ status: "storniert" }).eq("id", invoiceId);
+                toast({ title: "Rechnung storniert" });
+                navigate("/invoices");
+              }}>Stornieren</Button>
+            )}
+            {isLocked && form.typ === "angebot" && (
+              <Button variant="destructive" onClick={async () => {
+                if (!confirm("Angebot wirklich löschen?")) return;
+                await supabase.from("invoice_items").delete().eq("invoice_id", invoiceId);
+                await supabase.from("invoices").delete().eq("id", invoiceId);
+                toast({ title: "Angebot gelöscht" });
+                navigate("/invoices");
+              }}>Löschen</Button>
+            )}
             <Button onClick={handlePreview} className="gap-2">
               <Eye className="w-4 h-4" />
-              Vorschau
+              {isLocked ? "Vorschau / PDF" : "Speichern & Vorschau"}
             </Button>
           </div>
         </div>
@@ -1466,6 +1494,7 @@ export default function InvoiceDetail() {
           open={previewOpen}
           onClose={() => setPreviewOpen(false)}
           onSave={handleSaveFromPreview}
+          onSavedClose={() => navigate("/invoices")}
           saving={saving}
           saved={previewSaved}
           fileName={form.nummer || (form.typ === "angebot" ? "Angebot" : "Rechnung")}

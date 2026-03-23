@@ -14,6 +14,7 @@ interface InvoicePdfPreviewProps {
   open: boolean;
   onClose: () => void;
   onSave?: () => Promise<void> | void;
+  onSavedClose?: () => void; // Navigate back to list after save
   saving?: boolean;
   saved?: boolean;
   invoiceId?: string;
@@ -26,6 +27,7 @@ export function InvoicePdfPreview({
   open,
   onClose,
   onSave,
+  onSavedClose,
   saving,
   saved,
   invoiceId,
@@ -158,25 +160,42 @@ export function InvoicePdfPreview({
                 Zuerst speichern
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={onClose}>
-              <X className="h-4 w-4 mr-2" />
-              Schließen
-            </Button>
+            {saved && onSavedClose ? (
+              <Button variant="outline" size="sm" onClick={onSavedClose}>
+                <X className="h-4 w-4 mr-2" />
+                Zurück zur Übersicht
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={onClose}>
+                <X className="h-4 w-4 mr-2" />
+                Schließen
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto bg-gray-200">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : htmlContent ? (
-            <iframe
-              ref={iframeRef}
-              srcDoc={htmlContent}
-              className="w-full h-full border-0"
-              title="Invoice Preview"
-            />
+            <div className="py-6 flex justify-center">
+              <iframe
+                ref={iframeRef}
+                srcDoc={htmlContent}
+                className="border-0 bg-white shadow-xl"
+                style={{ width: "210mm", minHeight: "297mm", height: "auto" }}
+                title="Invoice Preview"
+                onLoad={() => {
+                  // Auto-resize iframe to content height
+                  if (iframeRef.current?.contentDocument) {
+                    const h = iframeRef.current.contentDocument.documentElement.scrollHeight;
+                    iframeRef.current.style.height = `${Math.max(h, 1122)}px`; // 297mm ≈ 1122px
+                  }
+                }}
+              />
+            </div>
           ) : null}
         </div>
       </DialogContent>
