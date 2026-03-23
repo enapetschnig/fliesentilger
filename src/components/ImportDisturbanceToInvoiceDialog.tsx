@@ -74,13 +74,20 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
   };
 
   const loadDisturbanceDetails = async (id: string) => {
-    const { data: materials } = await supabase
-      .from("disturbance_materials")
-      .select("material, menge, einheit, einzelpreis")
-      .eq("disturbance_id", id);
+    // Load disturbance directly from DB (not from state — avoids race condition)
+    const [{ data: distData }, { data: materials }] = await Promise.all([
+      supabase.from("disturbances").select("id, datum, kunde_name, kunde_email, kunde_adresse, kunde_plz, kunde_ort, kunde_telefon, stunden, beschreibung, is_verrechnet, start_time, end_time").eq("id", id).single(),
+      supabase.from("disturbance_materials").select("material, menge, einheit, einzelpreis").eq("disturbance_id", id),
+    ]);
 
-    const dist = disturbances.find(d => d.id === id);
+    const dist = distData;
     if (!dist) return;
+
+    // Update disturbances list if not already there
+    setDisturbances(prev => {
+      if (prev.find(d => d.id === dist.id)) return prev;
+      return [dist, ...prev];
+    });
 
     const newItems: ImportItem[] = [];
 
@@ -129,7 +136,7 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
         .select("id, name, adresse, plz, ort, land, email, telefon, uid_nummer")
         .ilike("name", `%${dist.kunde_name}%`)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (matchedCustomer) {
         kundeData = {
@@ -142,6 +149,16 @@ export function ImportDisturbanceToInvoiceDialog({ open, onClose, onImport, pres
           kunde_email: matchedCustomer.email,
           kunde_telefon: matchedCustomer.telefon,
           kunde_uid: matchedCustomer.uid_nummer,
+        };
+      } else {
+        // Use data from Regiebericht directly
+        kundeData = {
+          kunde_name: dist.kunde_name,
+          kunde_adresse: (dist as any).kunde_adresse || "",
+          kunde_plz: (dist as any).kunde_plz || "",
+          kunde_ort: (dist as any).kunde_ort || "",
+          kunde_email: (dist as any).kunde_email || "",
+          kunde_telefon: (dist as any).kunde_telefon || "",
         };
       }
     }
