@@ -33,6 +33,7 @@ import OfferPackages from "./pages/OfferPackages";
 import MaterialWithdraw from "./pages/MaterialWithdraw";
 import LieferscheinDetail from "./pages/LieferscheinDetail";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -56,33 +57,36 @@ function AppContent() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Index />} />
+        {/* Public routes */}
         <Route path="/auth" element={<Auth />} />
-        <Route path="/time-tracking" element={<TimeTracking />} />
-        <Route path="/projects" element={<Projects />} />
-        <Route path="/projects/:projectId" element={<ProjectOverview />} />
-        <Route path="/projects/:projectId/:type" element={<ProjectDetail />} />
-        <Route path="/projects/:projectId/materials" element={<MaterialList />} />
-        <Route path="/my-hours" element={<MyHours />} />
-        <Route path="/my-documents" element={<MyDocuments />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/construction-sites" element={<ConstructionSites />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/hours-report" element={<HoursReport />} />
-        <Route path="/employees" element={<Employees />} />
-        <Route path="/notepad" element={<Notepad />} />
-        <Route path="/disturbances" element={<Disturbances />} />
-        <Route path="/disturbances/:id" element={<DisturbanceDetail />} />
-        <Route path="/invoices" element={<Invoices />} />
-        <Route path="/invoices/templates" element={<InvoiceTemplates />} />
-        <Route path="/invoices/packages" element={<OfferPackages />} />
-        <Route path="/invoices/new" element={<InvoiceDetail />} />
-        <Route path="/invoices/:id" element={<InvoiceDetail />} />
-        <Route path="/materials" element={<InvoiceTemplates />} />
-        <Route path="/material-withdraw" element={<MaterialWithdraw />} />
-        <Route path="/material" element={<MaterialWithdraw />} />
-        <Route path="/material/:id" element={<LieferscheinDetail />} />
-        <Route path="/customers" element={<Customers />} />
+
+        {/* Protected routes — require active account */}
+        <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+        <Route path="/time-tracking" element={<ProtectedRoute><TimeTracking /></ProtectedRoute>} />
+        <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
+        <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectOverview /></ProtectedRoute>} />
+        <Route path="/projects/:projectId/:type" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+        <Route path="/projects/:projectId/materials" element={<ProtectedRoute><MaterialList /></ProtectedRoute>} />
+        <Route path="/my-hours" element={<ProtectedRoute><MyHours /></ProtectedRoute>} />
+        <Route path="/my-documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/construction-sites" element={<ProtectedRoute><ConstructionSites /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+        <Route path="/hours-report" element={<ProtectedRoute><HoursReport /></ProtectedRoute>} />
+        <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
+        <Route path="/notepad" element={<ProtectedRoute><Notepad /></ProtectedRoute>} />
+        <Route path="/disturbances" element={<ProtectedRoute><Disturbances /></ProtectedRoute>} />
+        <Route path="/disturbances/:id" element={<ProtectedRoute><DisturbanceDetail /></ProtectedRoute>} />
+        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        <Route path="/invoices/templates" element={<ProtectedRoute><InvoiceTemplates /></ProtectedRoute>} />
+        <Route path="/invoices/packages" element={<ProtectedRoute><OfferPackages /></ProtectedRoute>} />
+        <Route path="/invoices/new" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
+        <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
+        <Route path="/materials" element={<ProtectedRoute><InvoiceTemplates /></ProtectedRoute>} />
+        <Route path="/material-withdraw" element={<ProtectedRoute><MaterialWithdraw /></ProtectedRoute>} />
+        <Route path="/material" element={<ProtectedRoute><MaterialWithdraw /></ProtectedRoute>} />
+        <Route path="/material/:id" element={<ProtectedRoute><LieferscheinDetail /></ProtectedRoute>} />
+        <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
 
