@@ -238,8 +238,8 @@ export function buildInvoiceHtml(
   table.items tfoot { display: table-footer-group; }
   table.items tfoot td { border: none; padding: 4px 8px; font-size: 7.5pt; color: #888; font-style: italic; }
 
-  /* Totals — avoid page break */
-  .totals-section { page-break-inside: avoid; break-inside: avoid; }
+  /* Totals — never split across pages */
+  .totals-section { page-break-inside: avoid !important; break-inside: avoid !important; page-break-before: auto; }
   .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 18px; }
   .totals-table { width: 250px; }
   .totals-table td { padding: 3px 0; font-size: 9pt; }
@@ -311,73 +311,39 @@ ${mahnBanner}
 <!-- Document Title -->
 <div class="doc-title">${typLabel}${invoice.nummer ? ` Nr.: ${invoice.nummer}` : ""}</div>
 
-${(() => {
-  const allItems = items || [];
-  const MAX_PER_PAGE = 16;
-  const tableHead = `<thead><tr>
-    <th style="width:40px;text-align:center;">Pos.</th>
-    <th style="width:55px;text-align:right;">Menge</th>
-    <th style="width:45px;text-align:center;">Einh.</th>
-    <th style="text-align:left;">Beschreibung</th>
-    <th style="width:80px;text-align:right;">Preis</th>
-    <th style="width:90px;text-align:right;">Gesamt</th>
-  </tr></thead>`;
+<!-- Items Table -->
+<table class="items">
+  <thead>
+    <tr>
+      <th style="width:40px;text-align:center;">Pos.</th>
+      <th style="width:55px;text-align:right;">Menge</th>
+      <th style="width:45px;text-align:center;">Einh.</th>
+      <th style="text-align:left;">Beschreibung</th>
+      <th style="width:80px;text-align:right;">Preis</th>
+      <th style="width:90px;text-align:right;">Gesamt</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${(items || []).map((item, idx) => `
+    <tr>
+      <td style="text-align:center;color:#888;">${String(item.position).padStart(2, "0")}</td>
+      <td style="text-align:right;">${fmt(Number(item.menge))}</td>
+      <td style="text-align:center;color:#888;">${item.einheit || "Stk."}</td>
+      <td>${item.beschreibung}</td>
+      <td style="text-align:right;">${fmtCurrency(Number(item.einzelpreis))}</td>
+      <td style="text-align:right;font-weight:600;">${fmtCurrency(Number(item.gesamtpreis))}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>
 
-  const renderRow = (item: InvoiceHtmlItem) => `<tr>
-    <td style="text-align:center;color:#888;">${String(item.position).padStart(2, "0")}</td>
-    <td style="text-align:right;">${fmt(Number(item.menge))}</td>
-    <td style="text-align:center;color:#888;">${item.einheit || "Stk."}</td>
-    <td>${item.beschreibung}</td>
-    <td style="text-align:right;">${fmtCurrency(Number(item.einzelpreis))}</td>
-    <td style="text-align:right;font-weight:600;">${fmtCurrency(Number(item.gesamtpreis))}</td>
-  </tr>`;
-
-  // If few items, render normally
-  if (allItems.length <= MAX_PER_PAGE) {
-    return `<table class="items">${tableHead}<tbody>${allItems.map(renderRow).join("")}</tbody></table>
-    <div class="totals-section"><div class="totals-wrap"><table class="totals-table">${totalsHtml}</table></div></div>`;
-  }
-
-  // Many items: split into pages, ensure totals are with last items
-  const chunks: InvoiceHtmlItem[][] = [];
-  for (let i = 0; i < allItems.length; i += MAX_PER_PAGE) {
-    chunks.push(allItems.slice(i, i + MAX_PER_PAGE));
-  }
-
-  // If last chunk has fewer than 4 items AND totals need to fit,
-  // move some items from second-to-last chunk
-  const lastChunk = chunks[chunks.length - 1];
-  if (lastChunk.length > MAX_PER_PAGE - 4) {
-    // Last chunk is full — totals go on next page
-    // Move last 4 items to a new chunk with totals
-    const moveItems = lastChunk.splice(-4);
-    chunks.push(moveItems);
-  }
-
-  let html = "";
-  chunks.forEach((chunk, chunkIdx) => {
-    const isLast = chunkIdx === chunks.length - 1;
-    const isFirst = chunkIdx === 0;
-
-    if (!isFirst) {
-      html += `<div style="page-break-before:always;"></div>`;
-    }
-
-    html += `<table class="items">${tableHead}<tbody>${chunk.map(renderRow).join("")}</tbody></table>`;
-
-    if (!isLast) {
-      // Show subtotal carried forward
-      const subtotal = chunks.slice(0, chunkIdx + 1).flat().reduce((s, it) => s + Number(it.gesamtpreis), 0);
-      html += `<div style="text-align:right;font-size:8pt;color:#888;margin-bottom:4px;font-style:italic;">Übertrag: ${fmtCurrency(subtotal)}</div>`;
-    }
-
-    if (isLast) {
-      html += `<div class="totals-section"><div class="totals-wrap"><table class="totals-table">${totalsHtml}</table></div></div>`;
-    }
-  });
-
-  return html;
-})()}
+<!-- Totals — kept together so they never split across pages -->
+<div class="totals-section">
+  <div class="totals-wrap">
+    <table class="totals-table">
+      ${totalsHtml}
+    </table>
+  </div>
+</div>
 
 ${invoice.notizen ? `<div class="notes"><strong>Anmerkung:</strong> ${invoice.notizen}</div>` : ""}
 
