@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, X, Save, Printer } from "lucide-react";
@@ -23,37 +23,6 @@ interface InvoicePdfPreviewProps {
   fileName?: string;
 }
 
-async function htmlToPdfBlob(html: string): Promise<Blob> {
-  const html2pdf = (await import("html2pdf.js")).default;
-  const container = document.createElement("div");
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-  if (bodyMatch) container.innerHTML = bodyMatch[1];
-  else container.innerHTML = html;
-
-  const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-  if (styleMatch) {
-    const style = document.createElement("style");
-    style.textContent = styleMatch[1];
-    container.prepend(style);
-  }
-  container.style.width = "210mm";
-  container.style.position = "absolute";
-  container.style.left = "-9999px";
-  document.body.appendChild(container);
-
-  try {
-    const blob: Blob = await html2pdf().set({
-      margin: 0,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    }).from(container).outputPdf("blob");
-    return blob;
-  } finally {
-    document.body.removeChild(container);
-  }
-}
-
 export function InvoicePdfPreview({
   open,
   onClose,
@@ -68,8 +37,8 @@ export function InvoicePdfPreview({
 }: InvoicePdfPreviewProps) {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const formDataRef = useRef(formData);
   const itemsRef = useRef(items);
@@ -78,61 +47,118 @@ export function InvoicePdfPreview({
 
   useEffect(() => {
     if (!open) {
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(null);
       setHtmlContent(null);
       return;
     }
 
-    const generate = async () => {
-      setLoading(true);
-      try {
-        let html: string;
-        if (formDataRef.current && itemsRef.current) {
-          html = buildInvoiceHtml(formDataRef.current, itemsRef.current);
-        } else if (invoiceId) {
-          const { data, error } = await supabase.functions.invoke("generate-invoice-pdf", { body: { invoiceId } });
+    if (formDataRef.current && itemsRef.current) {
+      const html = buildInvoiceHtml(formDataRef.current, itemsRef.current);
+      setHtmlContent(html);
+      return;
+    }
+
+    if (invoiceId) {
+      const fetchPdf = async () => {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase.functions.invoke(
+            "generate-invoice-pdf",
+            { body: { invoiceId } }
+          );
           if (error) throw error;
-          html = decodeURIComponent(escape(atob(data.pdf)));
-        } else {
+          const decoded = decodeURIComponent(escape(atob(data.pdf)));
+          setHtmlContent(decoded);
+        } catch (err) {
+          console.error("Error generating PDF preview:", err);
+        } finally {
           setLoading(false);
-          return;
         }
-
-        setHtmlContent(html);
-        // Generate real PDF for preview with page breaks
-        const blob = await htmlToPdfBlob(html);
-        const url = URL.createObjectURL(blob);
-        setPdfUrl(url);
-      } catch (err) {
-        console.error("Error generating preview:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    generate();
+      };
+      fetchPdf();
+    }
   }, [open, invoiceId]);
 
   const handlePrint = () => {
-    if (!pdfUrl) return;
-    const printWindow = window.open(pdfUrl, "_blank");
-    if (printWindow) {
-      printWindow.addEventListener("load", () => printWindow.print());
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.print();
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (!pdfUrl) return;
+  const generatePdfBlob = useCallback(async (): Promise<Blob | null> => {
+    if (!htmlContent) return null;
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const container = document.createElement("div");
+      const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      container.innerHTML = bodyMatch ? bodyMatch[1] : htmlContent;
+
+      const styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+      if (styleMatch) {
+        const style = document.createElement("style");
+        style.textContent = styleMatch[1];
+        container.prepend(style);
+      }
+      container.style.width = "210mm";
+      document.body.appendChild(container);
+
+      const pdfBlob: Blob = await html2pdf().set({
+        margin: 0,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      }).from(container).output("blob");
+
+      document.body.removeChild(container);
+      return pdfBlob;
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      return null;
+    }
+  }, [htmlContent]);
+
+  const handleDownloadPdf = async () => {
     setDownloading(true);
-    const a = document.createElement("a");
-    a.href = pdfUrl;
-    a.download = `${fileName || "Dokument"}.pdf`;
-    a.click();
+    const blob = await generatePdfBlob();
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileName || "Dokument"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (htmlContent) {
+      // Fallback: open print dialog
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(htmlContent);
+        win.document.close();
+        win.print();
+      }
+    }
     setDownloading(false);
   };
 
   const canDownload = saved || !onSave;
+
+  // Inject page-simulation CSS into the HTML for screen preview
+  const previewHtml = htmlContent ? htmlContent.replace(
+    "</style>",
+    `
+    /* Screen: simulate A4 pages */
+    @media screen {
+      body {
+        background: #e5e7eb !important;
+        padding: 20px 0 !important;
+      }
+      .page-wrap {
+        background: white;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        margin: 0 auto 20px auto;
+        min-height: 297mm;
+      }
+    }
+    </style>`
+  ) : null;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -148,11 +174,11 @@ export function InvoicePdfPreview({
             )}
             {canDownload ? (
               <>
-                <Button size="sm" onClick={handleDownloadPdf} disabled={!pdfUrl || downloading} className="gap-2">
+                <Button size="sm" onClick={handleDownloadPdf} disabled={!htmlContent || downloading} className="gap-2">
                   <Download className="h-4 w-4" />
-                  PDF herunterladen
+                  {downloading ? "Wird erstellt..." : "PDF herunterladen"}
                 </Button>
-                <Button variant="outline" size="sm" onClick={handlePrint} disabled={!pdfUrl}>
+                <Button variant="outline" size="sm" onClick={handlePrint} disabled={!htmlContent}>
                   <Printer className="h-4 w-4" />
                 </Button>
               </>
@@ -176,19 +202,17 @@ export function InvoicePdfPreview({
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-gray-200">
           {loading ? (
-            <div className="flex items-center justify-center h-full bg-gray-100">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">PDF wird erstellt...</p>
-              </div>
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : pdfUrl ? (
+          ) : previewHtml ? (
             <iframe
-              src={pdfUrl}
+              ref={iframeRef}
+              srcDoc={previewHtml}
               className="w-full h-full border-0"
-              title="PDF Preview"
+              title="Invoice Preview"
             />
           ) : null}
         </div>
