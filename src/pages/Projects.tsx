@@ -3,6 +3,7 @@ import { ArrowLeft, FolderOpen, Plus, FileText, Image, Package, Lock, Search, Up
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CreateProjectDialog } from "@/components/CreateProjectDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -376,67 +377,16 @@ const Projects = () => {
                 onClick={() => navigate("/")}
               />
             </div>
-            <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1 sm:gap-2">
-                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">Neues Projekt</span>
-                  <span className="sm:hidden">Neu</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-sm sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Neues Projekt erstellen</DialogTitle>
-                  <DialogDescription>Bauvorhaben hinzufügen</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Projektname *</Label>
-                    <Input
-                      id="name"
-                      value={newProject.name}
-                      onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                      placeholder="z.B. Einfamilienhaus Müller"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="plz">PLZ *</Label>
-                    <Input
-                      id="plz"
-                      value={newProject.plz}
-                      onChange={(e) => setNewProject({ ...newProject, plz: e.target.value })}
-                      placeholder="z.B. 9613"
-                      maxLength={5}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      4-5 stellige Postleitzahl
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="adresse">Adresse</Label>
-                    <Input
-                      id="adresse"
-                      value={newProject.adresse}
-                      onChange={(e) => setNewProject({ ...newProject, adresse: e.target.value })}
-                      placeholder="Straße und Hausnummer"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="beschreibung">Beschreibung</Label>
-                    <Textarea
-                      id="beschreibung"
-                      value={newProject.beschreibung}
-                      onChange={(e) => setNewProject({ ...newProject, beschreibung: e.target.value })}
-                      placeholder="Kurze Projektbeschreibung..."
-                      className="min-h-20"
-                    />
-                  </div>
-                  <Button onClick={handleCreateProject} className="w-full">
-                    Projekt erstellen
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button size="sm" className="gap-1 sm:gap-2" onClick={() => setShowNewDialog(true)}>
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Neues Projekt</span>
+              <span className="sm:hidden">Neu</span>
+            </Button>
+            <CreateProjectDialog
+              open={showNewDialog}
+              onClose={() => setShowNewDialog(false)}
+              onCreated={() => { setShowNewDialog(false); fetchProjects(); }}
+            />
           </div>
         </div>
       </header>

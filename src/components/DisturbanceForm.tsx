@@ -156,6 +156,11 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
 
   const addMaterial = () => {
     setMaterials([...materials, { id: crypto.randomUUID(), material: "", menge: "", einheit: "Stk." }]);
+    // Auto-scroll to new material after render
+    setTimeout(() => {
+      const container = document.querySelector('[data-materials-list]');
+      if (container) container.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 100);
   };
 
   const removeMaterial = (id: string) => {
@@ -600,7 +605,7 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
             </div>
             
             {materials.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-2" data-materials-list>
                 {materials.map((mat) => (
                   <div key={mat.id} className="flex gap-2 items-start">
                     <Input

@@ -18,6 +18,7 @@ import { ImportFromOfferDialog } from "@/components/ImportFromOfferDialog";
 import { ImportTimeDialog } from "@/components/ImportTimeDialog";
 import { ImportLieferscheinDialog } from "@/components/ImportLieferscheinDialog";
 import { ImportDisturbanceToInvoiceDialog } from "@/components/ImportDisturbanceToInvoiceDialog";
+import { CreateProjectDialog } from "@/components/CreateProjectDialog";
 import { ImportFromProjectDialog } from "@/components/ImportFromProjectDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -1701,73 +1702,25 @@ export default function InvoiceDetail() {
         />
 
         {/* Create Project Dialog (when offer accepted) */}
-        <AlertDialog open={createProjectDialogOpen} onOpenChange={(open) => {
-          setCreateProjectDialogOpen(open);
-          if (open) setNewProjectName(`${form.kunde_name} - ${form.nummer}`);
-        }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Projekt erstellen</AlertDialogTitle>
-              <AlertDialogDescription>
-                Das Angebot wurde angenommen. Projekt mit den Kundendaten erstellen?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="py-2">
-              <Label>Projektname</Label>
-              <Input
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                placeholder="Projektname eingeben"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Kunde: {form.kunde_name} · {form.kunde_plz} {form.kunde_ort}
-              </p>
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Nein, danke</AlertDialogCancel>
-              <AlertDialogAction onClick={async () => {
-                try {
-                  // Find customer_id by matching name
-                  let customerId = null;
-                  if (form.kunde_name) {
-                    const { data: matched } = await supabase
-                      .from("customers")
-                      .select("id")
-                      .ilike("name", `%${form.kunde_name}%`)
-                      .limit(1)
-                      .maybeSingle();
-                    if (matched) customerId = matched.id;
-                  }
-
-                  const { data: newProject, error } = await supabase
-                    .from("projects")
-                    .insert({
-                      name: newProjectName || `${form.kunde_name} - ${form.nummer}`,
-                      adresse: [form.kunde_adresse, form.kunde_plz, form.kunde_ort].filter(Boolean).join(", "),
-                      plz: form.kunde_plz || null,
-                      customer_id: customerId,
-                      status: "aktiv",
-                    })
-                    .select("id")
-                    .single();
-                  if (error) throw error;
-                  updateField("project_id", newProject.id);
-                  const { data: projectsData } = await supabase
-                    .from("projects")
-                    .select("id, name")
-                    .eq("status", "aktiv")
-                    .order("name");
-                  if (projectsData) setProjects(projectsData);
-                  toast({ title: "Projekt erstellt", description: `"${newProjectName}" wurde angelegt und verknüpft.` });
-                } catch (err: any) {
-                  toast({ variant: "destructive", title: "Fehler", description: err.message });
-                }
-              }}>
-                Ja, Projekt erstellen
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <CreateProjectDialog
+          open={createProjectDialogOpen}
+          onClose={() => setCreateProjectDialogOpen(false)}
+          onCreated={async (newProject) => {
+            updateField("project_id", newProject.id);
+            const { data: projectsData } = await supabase
+              .from("projects")
+              .select("id, name")
+              .eq("status", "aktiv")
+              .order("name");
+            if (projectsData) setProjects(projectsData);
+            setCreateProjectDialogOpen(false);
+          }}
+          defaultName={`${form.kunde_name} - ${form.nummer}`}
+          defaultCustomerName={form.kunde_name}
+          defaultAdresse={form.kunde_adresse}
+          defaultPlz={form.kunde_plz}
+          defaultOrt={form.kunde_ort}
+        />
       </div>
     </div>
   );
