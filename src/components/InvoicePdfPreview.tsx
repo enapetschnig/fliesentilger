@@ -72,22 +72,34 @@ async function createPdf(html: string): Promise<Blob> {
     container.prepend(style);
   }
 
-  // Render container at A4 width minus margins (180mm ≈ 680px at 96dpi)
+  // Render container visible but behind everything
   container.style.width = "680px";
   container.style.padding = "0";
-  container.style.position = "absolute";
-  container.style.left = "-9999px";
+  container.style.position = "fixed";
   container.style.top = "0";
+  container.style.left = "0";
+  container.style.zIndex = "-1";
   container.style.background = "white";
+  container.style.overflow = "visible";
   document.body.appendChild(container);
 
-  await new Promise(r => setTimeout(r, 300));
+  // Wait for images (especially base64 logo) to load
+  const images = container.querySelectorAll("img");
+  await Promise.all(Array.from(images).map(img =>
+    img.complete ? Promise.resolve() : new Promise(resolve => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    })
+  ));
+  await new Promise(r => setTimeout(r, 200));
 
   const canvas = await html2canvas(container, {
     scale: 2,
     useCORS: true,
+    allowTaint: true,
     letterRendering: true,
     scrollY: 0,
+    width: 680,
     windowWidth: 680,
   });
 
@@ -256,7 +268,7 @@ export function InvoicePdfPreview({
       setPdfUrl(URL.createObjectURL(blob));
     } catch (err: any) {
       console.error("PDF generation error:", err);
-      setError("PDF konnte nicht erstellt werden.");
+      setError(`PDF-Fehler: ${err?.message || "Unbekannt"}`);
     } finally {
       setGenerating(false);
     }
