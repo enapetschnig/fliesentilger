@@ -102,9 +102,10 @@ export function VoiceRecorder({ typ, existingItems, onAccept, onCancel }: VoiceR
       if (!data.items?.length) {
         setErrorMsg("Keine Materialien erkannt. Bitte nochmal versuchen.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Processing error:", err);
-      setErrorMsg("Verarbeitung fehlgeschlagen. Bitte nochmal versuchen.");
+      const msg = err?.message || err?.context?.body?.message || "Unbekannter Fehler";
+      setErrorMsg(`Verarbeitung fehlgeschlagen: ${msg}`);
       setState("error");
     }
   };

@@ -19,7 +19,8 @@ const ProjectOverview = () => {
   const navigate = useNavigate();
   const [projectName, setProjectName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [materialCount, setMaterialCount] = useState(0);
+  const [lieferscheinCount, setLieferscheinCount] = useState(0);
+  const [invoiceCount, setInvoiceCount] = useState(0);
   const [categories, setCategories] = useState<DocumentCategory[]>([
     {
       type: "photos",
@@ -33,13 +34,6 @@ const ProjectOverview = () => {
       title: "Pläne",
       description: "Baupläne und technische Zeichnungen",
       icon: <FileText className="h-8 w-8" />,
-      count: 0,
-    },
-    {
-      type: "reports",
-      title: "Regieberichte",
-      description: "Bautagebücher und Stundenberichte",
-      icon: <FileCheck className="h-8 w-8" />,
       count: 0,
     },
     {
@@ -62,7 +56,8 @@ const ProjectOverview = () => {
   useEffect(() => {
     if (projectId) {
       fetchFileCounts();
-      fetchMaterialCount();
+      fetchLieferscheinCount();
+      fetchInvoiceCount();
     }
   }, [projectId, isAdmin]);
 
@@ -94,15 +89,22 @@ const ProjectOverview = () => {
     }
   };
 
-  const fetchMaterialCount = async () => {
+  const fetchLieferscheinCount = async () => {
     if (!projectId) return;
-
     const { count } = await supabase
-      .from("material_entries")
+      .from("lieferscheine")
       .select("*", { count: "exact", head: true })
       .eq("project_id", projectId);
+    setLieferscheinCount(count || 0);
+  };
 
-    setMaterialCount(count || 0);
+  const fetchInvoiceCount = async () => {
+    if (!projectId) return;
+    const { count } = await supabase
+      .from("invoices")
+      .select("*", { count: "exact", head: true })
+      .eq("project_id", projectId);
+    setInvoiceCount(count || 0);
   };
 
   const fetchFileCounts = async () => {
@@ -195,18 +197,18 @@ const ProjectOverview = () => {
             </Card>
           ))}
 
-          {/* Materialliste - separate card with DB count */}
-          <Card 
+          {/* Lieferscheine */}
+          <Card
             className="cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => navigate(`/projects/${projectId}/materials`)}
+            onClick={() => navigate(`/material?project=${projectId}`)}
           >
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="text-primary"><Package className="h-8 w-8" /></div>
-                <div className="text-2xl font-bold">{materialCount}</div>
+                <div className="text-2xl font-bold">{lieferscheinCount}</div>
               </div>
-              <CardTitle className="text-xl">Materialliste</CardTitle>
-              <CardDescription>Verwendete Materialien dokumentieren</CardDescription>
+              <CardTitle className="text-xl">Lieferscheine</CardTitle>
+              <CardDescription>Material-Entnahmen und Rückgaben</CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="outline" className="w-full">
@@ -214,6 +216,28 @@ const ProjectOverview = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Angebote & Rechnungen */}
+          {isAdmin && (
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => navigate(`/invoices?project=${projectId}`)}
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="text-primary"><FileText className="h-8 w-8" /></div>
+                  <div className="text-2xl font-bold">{invoiceCount}</div>
+                </div>
+                <CardTitle className="text-xl">Angebote & Rechnungen</CardTitle>
+                <CardDescription>Zugeordnete Angebote und Rechnungen</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full">
+                  Öffnen
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Floating Action Button für Fotos */}
