@@ -139,18 +139,20 @@ export function VoiceRecorder({ typ, existingItems, onAccept, onCancel }: VoiceR
         </Button>
       </div>
 
-      {/* Info */}
-      {state === "idle" && (
+      {/* Info - always show hint and positions during idle/recording/processing */}
+      {(state === "idle" || state === "recording" || state === "processing") && (
         <div className="space-y-2">
-          <div className="text-xs text-muted-foreground bg-muted/50 rounded p-3">
-            {typ === "entnahme" ? (
-              <>Drücke auf Aufnehmen und sag z.B.: <strong>"Ich habe 40 Quadratmeter Fliesen 60x60 und 5 Sack Fliesenkleber mitgenommen"</strong></>
-            ) : (
-              <>Drücke auf Aufnehmen und sag z.B.: <strong>"Position 1, davon gebe ich 10 Stück zurück"</strong> oder <strong>"Ich bringe 5 Quadratmeter Fliesen zurück"</strong></>
-            )}
-          </div>
+          {state === "idle" && (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded p-3">
+              {typ === "entnahme" ? (
+                <>Drücke auf Aufnehmen und sag z.B.: <strong>"Ich habe 40 Quadratmeter Fliesen 60x60 und 5 Sack Fliesenkleber mitgenommen"</strong></>
+              ) : (
+                <>Drücke auf Aufnehmen und sag z.B.: <strong>"Position 1, davon gebe ich 10 Stück zurück"</strong> oder <strong>"Ich bringe 5 Quadratmeter Fliesen zurück"</strong></>
+              )}
+            </div>
+          )}
 
-          {/* Show existing positions for return reference */}
+          {/* Show existing positions for return reference - ALWAYS visible during recording */}
           {typ === "rueckgabe" && existingItems && existingItems.length > 0 && (
             <div className="bg-green-50 border border-green-200 rounded p-3 space-y-1">
               <p className="text-xs font-medium text-green-800">Entnommene Positionen:</p>

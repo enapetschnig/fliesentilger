@@ -323,6 +323,7 @@ export default function LieferscheinDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">Pos</TableHead>
                     <TableHead>Material</TableHead>
                     <TableHead className="text-right">Entnommen</TableHead>
                     <TableHead className="text-right">Zurück</TableHead>
@@ -333,6 +334,7 @@ export default function LieferscheinDetail() {
                 <TableBody>
                   {summary.map((s, idx) => (
                     <TableRow key={idx}>
+                      <TableCell className="text-muted-foreground text-center font-medium">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{s.material}</TableCell>
                       <TableCell className="text-right text-red-600">{s.entnommen} {s.einheit}</TableCell>
                       <TableCell className="text-right text-green-600">{s.zurueck} {s.einheit}</TableCell>
