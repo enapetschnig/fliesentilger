@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/PageHeader";
-import { Plus, Trash2, Save, Package, Search, Filter } from "lucide-react";
+import { Plus, Trash2, Save, Package, Search, Filter, Upload } from "lucide-react";
+import { MaterialFileImport } from "@/components/MaterialFileImport";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ export default function InvoiceTemplates() {
   const [search, setSearch] = useState("");
   const [filterKategorie, setFilterKategorie] = useState<string>("alle");
   const [form, setForm] = useState({ name: "", beschreibung: "", einheit: "Stk.", einzelpreis: 0, kategorie: "Allgemein", artikelnummer: "" });
+  const [importOpen, setImportOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => { fetchTemplates(); }, []);
@@ -156,10 +158,16 @@ export default function InvoiceTemplates() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={openNew} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Neues Material
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2">
+              <Upload className="w-4 h-4" />
+              Importieren
+            </Button>
+            <Button onClick={openNew} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Neues Material
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -279,6 +287,12 @@ export default function InvoiceTemplates() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <MaterialFileImport
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImported={() => { setImportOpen(false); fetchTemplates(); }}
+        />
       </div>
     </div>
   );

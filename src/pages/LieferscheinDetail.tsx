@@ -37,8 +37,10 @@ export default function LieferscheinDetail() {
   const { id } = useParams();
   const { toast } = useToast();
   const [lsName, setLsName] = useState("");
+  const [lsProjectId, setLsProjectId] = useState<string | null>(null);
   const [lsProject, setLsProject] = useState<string | null>(null);
   const [lsDatum, setLsDatum] = useState("");
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [entries, setEntries] = useState<MaterialEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -65,6 +67,8 @@ export default function LieferscheinDetail() {
     setCurrentUserId(user.id);
     const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
     setIsAdmin(roleData?.role === "administrator");
+    const { data: prjData } = await supabase.from("projects").select("id, name").eq("status", "aktiv").order("name");
+    if (prjData) setProjects(prjData);
     await fetchData();
     setLoading(false);
   };
@@ -76,6 +80,7 @@ export default function LieferscheinDetail() {
     const { data: ls } = await supabase.from("lieferscheine").select("*, projects(name)").eq("id", id).single();
     if (ls) {
       setLsName(ls.name || (ls.projects as any)?.name || "Lieferschein");
+      setLsProjectId(ls.project_id || null);
       setLsProject((ls.projects as any)?.name || null);
       setLsDatum(ls.datum || "");
     }
@@ -183,10 +188,33 @@ export default function LieferscheinDetail() {
       <PageHeader title={lsName} backPath="/material" />
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-4">
-        {/* Info */}
-        <div className="flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
-          {lsProject && <Badge variant="secondary">{lsProject}</Badge>}
-          {lsDatum && <span>{new Date(lsDatum).toLocaleDateString("de-AT")}</span>}
+        {/* Info + Projekt-Zuordnung */}
+        <div className="flex items-center gap-3 flex-wrap text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Projekt:</span>
+            <Select
+              value={lsProjectId || "none"}
+              onValueChange={async (v) => {
+                const newPid = v === "none" ? null : v;
+                setLsProjectId(newPid);
+                const proj = projects.find(p => p.id === newPid);
+                setLsProject(proj?.name || null);
+                await supabase.from("lieferscheine").update({ project_id: newPid }).eq("id", id);
+                toast({ title: newPid ? `Projekt: ${proj?.name}` : "Projekt entfernt" });
+              }}
+            >
+              <SelectTrigger className="w-[200px] h-8 text-sm">
+                <SelectValue placeholder="Kein Projekt" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Kein Projekt</SelectItem>
+                {projects.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {lsDatum && <span className="text-muted-foreground">{new Date(lsDatum).toLocaleDateString("de-AT")}</span>}
         </div>
 
         {/* Buttons */}
