@@ -623,7 +623,7 @@ export default function InvoiceDetail() {
 
         if (numError) throw numError;
         const nummer = numData as string;
-        const laufnummer = parseInt(nummer.split("-")[2]);
+        const laufnummer = parseInt(nummer.replace(/\D/g, "").slice(-3)) || 1;
 
         const { data: insertData, error: insertError } = await supabase
           .from("invoices")
@@ -880,7 +880,7 @@ export default function InvoiceDetail() {
       if (numError) throw numError;
 
       const nummer = numData as string;
-      const laufnummer = parseInt(nummer.split("-")[2]);
+      const laufnummer = parseInt(nummer.replace(/\D/g, "").slice(-3)) || 1;
 
       const { data: newInvoice, error: insertError } = await supabase
         .from("invoices")
