@@ -1989,7 +1989,7 @@ export default function InvoiceDetail() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Input type="number" value={item.menge} onChange={(e) => updateItem(idx, "menge", Number(e.target.value))} min={0} step={0.01} className="text-right" />
+                          <Input type="number" value={item.menge} onChange={(e) => updateItem(idx, "menge", Number(e.target.value))} min={0} step={0.1} className="text-right" />
                         </TableCell>
                         <TableCell>
                           <Select value={item.einheit || "Stk."} onValueChange={(v) => updateItem(idx, "einheit", v)}>
