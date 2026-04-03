@@ -58,13 +58,6 @@ const ProjectOverview = () => {
       count: 0,
     },
     {
-      type: "reports",
-      title: "Material",
-      description: "Materialfotos und Dokumentation",
-      icon: <Package className="h-8 w-8" />,
-      count: 0,
-    },
-    {
       type: "chef",
       title: "🔒 Chefordner",
       description: "Vertrauliche Chef-Dokumente",
