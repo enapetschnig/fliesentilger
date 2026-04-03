@@ -104,6 +104,7 @@ const TimeTracking = () => {
   
   const [absenceData, setAbsenceData] = useState({
     date: new Date().toISOString().split('T')[0],
+    endDate: "" as string,
     type: "urlaub" as "urlaub" | "krankenstand" | "weiterbildung" | "feiertag" | "za",
     document: null as File | null,
     customHours: "" as string,
@@ -375,21 +376,7 @@ const TimeTracking = () => {
       return;
     }
 
-    const { count: existingCount } = await supabase
-      .from("time_entries")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("datum", absenceData.date);
-
-    if ((existingCount ?? 0) > 0) {
-      toast({ 
-        variant: "destructive", 
-        title: "Eintrag bereits vorhanden", 
-        description: "Für diesen Tag wurden die Stunden bereits eingetragen, gehe unter Meine Stunden rein." 
-      });
-      setSubmittingAbsence(false);
-      return;
-    }
+    // Duplicate check is handled in batch below (existing dates are skipped)
 
     let documentPath = null;
     if (absenceData.type === "krankenstand" && absenceData.document) {
@@ -480,25 +467,67 @@ const TimeTracking = () => {
 
     const absenceLabel = absenceData.type === "urlaub" ? "Urlaub" : absenceData.type === "krankenstand" ? "Krankenstand" : absenceData.type === "weiterbildung" ? "Weiterbildung" : absenceData.type === "za" ? "Zeitausgleich" : "Feiertag";
 
-    const { error } = await supabase.from("time_entries").insert({
-      user_id: user.id,
-      datum: absenceData.date,
-      project_id: null,
-      taetigkeit: absenceLabel,
-      stunden: workingHours,
-      start_time: entryStartTime,
-      end_time: entryEndTime,
-      pause_minutes: entryPauseMinutes,
-      location_type: "baustelle",
-      notizen: documentPath ? `Krankmeldung: ${documentPath}` : null,
-      week_type: null,
+    // Build list of dates (skip weekends)
+    const dates: string[] = [];
+    const startD = new Date(absenceData.date + "T12:00:00");
+    const endD = absenceData.endDate && absenceData.endDate >= absenceData.date
+      ? new Date(absenceData.endDate + "T12:00:00")
+      : startD;
+    for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) continue; // skip weekends
+      dates.push(d.toISOString().split("T")[0]);
+    }
+
+    // Check for existing entries on any of these dates
+    const { data: existingEntries } = await supabase
+      .from("time_entries")
+      .select("datum")
+      .eq("user_id", user.id)
+      .in("datum", dates);
+    const existingDates = new Set((existingEntries || []).map(e => e.datum));
+    const newDates = dates.filter(d => !existingDates.has(d));
+
+    if (newDates.length === 0) {
+      toast({ variant: "destructive", title: "Alle Tage bereits erfasst" });
+      setSubmittingAbsence(false);
+      return;
+    }
+
+    // Insert entries for all new dates
+    const entries = newDates.map(datum => {
+      const dayObj = new Date(datum + "T12:00:00");
+      const dayHours = absenceData.isFullDay
+        ? (absenceData.customHours ? parseFloat(absenceData.customHours) : getNormalWorkingHours(dayObj))
+        : workingHours;
+      const dayTimes = absenceData.isFullDay ? getDefaultWorkTimes(dayObj) : null;
+      return {
+        user_id: user.id,
+        datum,
+        project_id: null,
+        taetigkeit: absenceLabel,
+        stunden: dayHours,
+        start_time: dayTimes?.startTime || entryStartTime,
+        end_time: dayTimes?.endTime || entryEndTime,
+        pause_minutes: dayTimes?.pauseMinutes ?? entryPauseMinutes,
+        location_type: "baustelle",
+        notizen: documentPath ? `Krankmeldung: ${documentPath}` : null,
+        week_type: null,
+      };
     });
 
+    const { error } = await supabase.from("time_entries").insert(entries);
+
     if (!error) {
-      toast({ title: "Erfolg", description: `${absenceLabel} erfasst` });
+      const skipped = existingDates.size;
+      const desc = newDates.length === 1
+        ? `${absenceLabel} erfasst`
+        : `${absenceLabel} für ${newDates.length} Tage erfasst${skipped > 0 ? ` (${skipped} übersprungen)` : ""}`;
+      toast({ title: "Erfolg", description: desc });
       setShowAbsenceDialog(false);
       setAbsenceData({
         date: new Date().toISOString().split('T')[0],
+        endDate: "",
         type: "urlaub",
         document: null,
         customHours: "",
@@ -1122,15 +1151,37 @@ const TimeTracking = () => {
               <DialogDescription>Erfassen Sie Urlaub, Krankenstand, ZA, Weiterbildung oder Feiertag</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="absence-date">Datum</Label>
-                <Input 
-                  id="absence-date" 
-                  type="date" 
-                  value={absenceData.date} 
-                  onChange={(e) => setAbsenceData({ ...absenceData, date: e.target.value })} 
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="absence-date">Von</Label>
+                  <Input
+                    id="absence-date"
+                    type="date"
+                    value={absenceData.date}
+                    onChange={(e) => setAbsenceData({ ...absenceData, date: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="absence-end-date">Bis (optional)</Label>
+                  <Input
+                    id="absence-end-date"
+                    type="date"
+                    value={absenceData.endDate}
+                    onChange={(e) => setAbsenceData({ ...absenceData, endDate: e.target.value })}
+                    min={absenceData.date}
+                  />
+                </div>
               </div>
+              {absenceData.endDate && absenceData.endDate > absenceData.date && (() => {
+                const start = new Date(absenceData.date);
+                const end = new Date(absenceData.endDate);
+                let days = 0;
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                  const dow = d.getDay();
+                  if (dow !== 0 && dow !== 6) days++;
+                }
+                return <p className="text-sm text-muted-foreground">{days} Arbeitstage (Wochenenden werden übersprungen)</p>;
+              })()}
               
               <div>
                 <Label>Art</Label>
