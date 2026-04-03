@@ -152,7 +152,7 @@ export async function generateInvoicePdf(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(13);
   pdf.setTextColor(0, 0, 0);
-  pdf.text(`${typLabel}${invoice.nummer ? ` Nr.: ${invoice.nummer}` : ""}`, ml, y);
+  pdf.text(`${typLabel} Nr. ${invoice.nummer || ""}`.trim(), ml, y);
   y += 2;
   pdf.setDrawColor(204, 0, 0);
   pdf.setLineWidth(0.8);
