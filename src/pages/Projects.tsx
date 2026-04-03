@@ -51,7 +51,8 @@ const Projects = () => {
   });
   const [quickUploadProject, setQuickUploadProject] = useState<{
     projectId: string;
-    documentType: 'photos' | 'plans' | 'reports' | 'materials';
+    documentType: 'photos' | 'plans';
+    subfolder?: string;
   } | null>(null);
   const [projectToClose, setProjectToClose] = useState<{id: string, name: string} | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<{id: string, name: string} | null>(null);
@@ -530,35 +531,35 @@ const Projects = () => {
                       setShowCameraDialog(true);
                     }}>
                       <Camera className="w-4 h-4 mr-2" />
-                      📸 Foto aufnehmen
+                      Foto aufnehmen
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
                       setQuickUploadProject({ projectId: project.id, documentType: 'photos' });
                     }}>
                       <Camera className="w-4 h-4 mr-2" />
-                      📷 Fotos hochladen
+                      Allgemeine Fotos
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      setQuickUploadProject({ projectId: project.id, documentType: 'photos', subfolder: 'rechnungen' } as any);
+                    }}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Rechnungen
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      setQuickUploadProject({ projectId: project.id, documentType: 'photos', subfolder: 'lieferscheine' } as any);
+                    }}>
+                      <Package className="w-4 h-4 mr-2" />
+                      Lieferscheine
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
                       setQuickUploadProject({ projectId: project.id, documentType: 'plans' });
                     }}>
                       <FileText className="w-4 h-4 mr-2" />
-                      📋 Pläne hochladen
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setQuickUploadProject({ projectId: project.id, documentType: 'reports' });
-                    }}>
-                      <FileText className="w-4 h-4 mr-2" />
-                      📄 Regieberichte hochladen
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setQuickUploadProject({ projectId: project.id, documentType: 'materials' });
-                    }}>
-                      <Package className="w-4 h-4 mr-2" />
-                      📦 Materiallisten hochladen
+                      Pläne
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -730,7 +731,8 @@ const Projects = () => {
       {quickUploadProject && !showCameraDialog && (
         <QuickUploadDialog
           projectId={quickUploadProject.projectId}
-          documentType={quickUploadProject.documentType}
+          documentType={quickUploadProject.documentType as any}
+          subfolder={quickUploadProject.subfolder}
           open={!!quickUploadProject}
           onClose={() => setQuickUploadProject(null)}
           onSuccess={() => {

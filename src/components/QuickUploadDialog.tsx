@@ -7,11 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 
-type DocumentType = "plans" | "reports" | "materials" | "photos";
+type DocumentType = "plans" | "photos";
 
 interface QuickUploadDialogProps {
   projectId: string;
   documentType?: DocumentType;
+  subfolder?: string;
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
@@ -19,24 +20,27 @@ interface QuickUploadDialogProps {
 
 const bucketMap: Record<DocumentType, string> = {
   plans: "project-plans",
-  reports: "project-reports",
-  materials: "project-materials",
   photos: "project-photos",
+};
+
+const subfolderLabels: Record<string, string> = {
+  allgemein: "Allgemeine Fotos",
+  rechnungen: "Rechnungen",
+  lieferscheine: "Lieferscheine",
 };
 
 const titleMap: Record<DocumentType, string> = {
   plans: "Pläne",
-  reports: "Regieberichte",
-  materials: "Materiallisten",
   photos: "Fotos",
 };
 
-export function QuickUploadDialog({ 
-  projectId, 
-  documentType = "photos", 
-  open, 
+export function QuickUploadDialog({
+  projectId,
+  documentType = "photos",
+  subfolder,
+  open,
   onClose,
-  onSuccess 
+  onSuccess
 }: QuickUploadDialogProps) {
   const { toast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -65,7 +69,8 @@ export function QuickUploadDialog({
 
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i];
-      const filePath = `${projectId}/${Date.now()}_${file.name}`;
+      const basePath = subfolder ? `${projectId}/${subfolder}` : projectId;
+      const filePath = `${basePath}/${Date.now()}_${file.name}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucket)
@@ -123,7 +128,7 @@ export function QuickUploadDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{titleMap[documentType]} hochladen</DialogTitle>
+          <DialogTitle>{subfolder ? subfolderLabels[subfolder] || subfolder : titleMap[documentType]} hochladen</DialogTitle>
           <DialogDescription>
             Wähle Dateien zum Hochladen aus
           </DialogDescription>
