@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -30,6 +30,8 @@ type Lieferschein = {
 export default function MaterialWithdraw() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const filterProjectId = searchParams.get("project");
   const [lieferscheine, setLieferscheine] = useState<Lieferschein[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export default function MaterialWithdraw() {
   // Form
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newProjectId, setNewProjectId] = useState<string>("none");
+  const [newProjectId, setNewProjectId] = useState<string>(filterProjectId || "none");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -66,10 +68,12 @@ export default function MaterialWithdraw() {
   };
 
   const fetchLieferscheine = async () => {
-    const { data: lsData } = await supabase
+    let query = supabase
       .from("lieferscheine")
       .select("*")
       .order("created_at", { ascending: false });
+    if (filterProjectId) query = query.eq("project_id", filterProjectId);
+    const { data: lsData } = await query;
 
     if (!lsData) return;
 
@@ -169,7 +173,7 @@ export default function MaterialWithdraw() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader title="Material / Lieferscheine" backPath="/" />
+      <PageHeader title={filterProjectId ? `Lieferscheine — ${projects.find(p => p.id === filterProjectId)?.name || "Projekt"}` : "Material / Lieferscheine"} backPath={filterProjectId ? `/projects/${filterProjectId}` : "/"} />
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-4">
         {!showForm ? (
