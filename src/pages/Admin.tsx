@@ -1028,9 +1028,11 @@ export default function Admin() {
                     {e}
                     <button
                       className="ml-1 text-muted-foreground hover:text-destructive"
-                      onClick={() => {
+                      onClick={async () => {
                         const updated = einheitenStr.split(",").map(x => x.trim()).filter(x => x && x !== e).join(",");
                         setEinheitenStr(updated);
+                        await supabase.from("app_settings").upsert({ key: "einheiten", value: updated, updated_at: new Date().toISOString() });
+                        toast({ title: `"${e}" entfernt` });
                       }}
                     >×</button>
                   </Badge>
@@ -1040,12 +1042,15 @@ export default function Admin() {
                 <Input
                   placeholder="Neue Einheit hinzufügen..."
                   className="max-w-xs"
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                       const val = (e.target as HTMLInputElement).value.trim();
                       if (val && !einheitenStr.split(",").map(x => x.trim()).includes(val)) {
-                        setEinheitenStr(prev => prev ? `${prev},${val}` : val);
+                        const updated = einheitenStr ? `${einheitenStr},${val}` : val;
+                        setEinheitenStr(updated);
                         (e.target as HTMLInputElement).value = "";
+                        await supabase.from("app_settings").upsert({ key: "einheiten", value: updated, updated_at: new Date().toISOString() });
+                        toast({ title: `"${val}" hinzugefügt` });
                       }
                     }
                   }}
@@ -1054,9 +1059,7 @@ export default function Admin() {
                   onClick={async () => {
                     setSavingSettings(true);
                     try {
-                      await supabase.from("app_settings").upsert([
-                        { key: "einheiten", value: einheitenStr.trim(), updated_at: new Date().toISOString() },
-                      ]);
+                      await supabase.from("app_settings").upsert({ key: "einheiten", value: einheitenStr.trim(), updated_at: new Date().toISOString() });
                       toast({ title: "Einheiten gespeichert" });
                     } catch (err: any) {
                       toast({ variant: "destructive", title: "Fehler", description: err.message });
