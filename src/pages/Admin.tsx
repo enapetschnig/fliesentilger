@@ -105,7 +105,7 @@ export default function Admin() {
   const [bankIban, setBankIban] = useState("AT61 2081 5000 0423 1474");
   const [bankBic, setBankBic] = useState("STSPAT2GXXX");
   const [firmenUid, setFirmenUid] = useState("");
-  const [einheitenStr, setEinheitenStr] = useState("Stk.,m²,lfm,Std.,Pauschal,kg,Liter,Tube,Sack,Karton,Palette,Rolle,Dose,Eimer");
+  const [einheitenStr, setEinheitenStr] = useState("Stk.,m²,m³,lfm,Std.,Pauschal,kg,t,Liter,Sack,Gebinde,Pkg.,Blatt,Rolle,Dose,Tube,Karton,Palette,Eimer");
   const [savingSettings, setSavingSettings] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
 

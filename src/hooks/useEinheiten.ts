@@ -15,7 +15,13 @@ export function useEinheiten() {
           .eq("key", "einheiten")
           .single();
         if (data?.value) {
-          setEinheiten(data.value.split(",").map((e: string) => e.trim()).filter(Boolean));
+          const saved = data.value.split(",").map((e: string) => e.trim()).filter(Boolean);
+          // Merge: saved list + any defaults not already in saved
+          const merged = [...saved];
+          for (const d of DEFAULT_EINHEITEN) {
+            if (!merged.includes(d)) merged.push(d);
+          }
+          setEinheiten(merged);
         }
       } catch {
         // Use defaults
@@ -25,3 +31,5 @@ export function useEinheiten() {
 
   return einheiten;
 }
+
+export { DEFAULT_EINHEITEN };
