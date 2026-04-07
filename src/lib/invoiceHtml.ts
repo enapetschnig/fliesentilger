@@ -293,7 +293,6 @@ ${mahnBanner}
 <!-- Address row — recipient left, meta right -->
 <div class="address-row">
   <div class="recipient">
-    <div class="sender-line">Gottfried Tilger · Bahnhofstr. 174 · 8831 Niederwölz</div>
     <div class="recipient-name">${invoice.kunde_name || "–"}</div>
     <div class="recipient-addr">
       ${invoice.kunde_adresse ? `${invoice.kunde_adresse}<br>` : ""}
@@ -372,7 +371,7 @@ ${
 <!-- Footer -->
 <div class="footer">
   <div class="footer-line">
-    Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz · Tel: +43 676 9664304 · info@ft-tilger.at
+    Gottfried Tilger · Fliesenlegermeister · Bahnhofstr. 174 · 8831 Niederwölz · Tel: +43 676 9664304 · info@ft-tilger.at
   </div>
   ${isAngebot ? `<div class="footer-line">IBAN: ${b.iban} · BIC: ${b.bic}</div>` : ""}
 </div>

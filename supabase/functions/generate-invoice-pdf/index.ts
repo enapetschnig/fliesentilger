@@ -161,8 +161,6 @@ ${mahnBanner}
   </div>
 </div>
 
-<div class="sender-line">Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz</div>
-
 <div class="addr-block">
   <div class="addr-name">${invoice.kunde_name}</div>
   <div class="addr-detail">
@@ -221,7 +219,7 @@ ${!isAngebot ? `<!-- Bank Details -->
 <!-- Footer -->
 <div class="footer">
   <div class="footer-line">
-    <span><span class="footer-accent">Gottfried Tilger</span> · Fliesentechnik & Natursteinteppich</span>
+    <span><span class="footer-accent">Gottfried Tilger</span> · Fliesenlegermeister</span>
     <span>Bahnhofstr. 174 · 8831 Niederwölz</span>
     <span>Tel: +43 676 9664304 · <span class="footer-accent">info@ft-tilger.at</span></span>
   </div>

@@ -81,13 +81,8 @@ export async function generateInvoicePdf(
   pdf.line(ml, y, pageWidth - mr, y);
   y += 4;
 
-  // Sender line
-  pdf.setFontSize(7);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("Gottfried Tilger \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz", ml, y);
-  pdf.setDrawColor(180, 180, 180);
-  pdf.line(ml, y + 1.5, ml + 72, y + 1.5);
-  y += 6;
+  // Sender line removed per request
+  y += 2;
 
   // Recipient
   const kundeAnrede = (invoice as any).kunde_anrede || "";
@@ -528,7 +523,7 @@ export async function generateInvoicePdf(
     pdf.setFontSize(7);
     pdf.setTextColor(0, 0, 0);
     pdf.text(
-      "Gottfried Tilger \u00B7 Fliesentechnik & Natursteinteppich \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz \u00B7 +43 676 9664304 \u00B7 info@ft-tilger.at",
+      "Gottfried Tilger \u00B7 Fliesenlegermeister \u00B7 Bahnhofstr. 174 \u00B7 8831 Niederwölz \u00B7 +43 676 9664304 \u00B7 info@ft-tilger.at",
       pageWidth / 2, fy + 4, { align: "center" }
     );
     pdf.text(`IBAN: ${bank.iban} \u00B7 BIC: ${bank.bic}`, pageWidth / 2, fy + 8, { align: "center" });
@@ -638,7 +633,7 @@ export function generateStornoPdf(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(6);
   pdf.setTextColor(0, 0, 0);
-  pdf.text("Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz · +43 676 9664304 · info@ft-tilger.at", pageWidth / 2, fy + 4, { align: "center" });
+  pdf.text("Gottfried Tilger · Fliesenlegermeister · Bahnhofstr. 174 · 8831 Niederwölz · +43 676 9664304 · info@ft-tilger.at", pageWidth / 2, fy + 4, { align: "center" });
   pdf.text(`IBAN: ${bank.iban} · BIC: ${bank.bic}`, pageWidth / 2, fy + 7.5, { align: "center" });
 
   return pdf.output("blob");
@@ -675,13 +670,7 @@ export function generateMahnungPdf(
 
   y += 25;
 
-  pdf.setFontSize(6);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("Gottfried Tilger · Bahnhofstr. 174 · 8831 Niederwölz", ml, y);
-  pdf.setDrawColor(200, 200, 200);
-  pdf.setLineWidth(0.2);
-  pdf.line(ml, y + 1, ml + 85, y + 1);
-  y += 5;
+  y += 2;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
@@ -775,7 +764,7 @@ export function generateMahnungPdf(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(6);
   pdf.setTextColor(0, 0, 0);
-  pdf.text("Gottfried Tilger · Fliesentechnik & Natursteinteppich · Bahnhofstr. 174 · 8831 Niederwölz · +43 676 9664304 · info@ft-tilger.at", pageWidth / 2, fy + 4, { align: "center" });
+  pdf.text("Gottfried Tilger · Fliesenlegermeister · Bahnhofstr. 174 · 8831 Niederwölz · +43 676 9664304 · info@ft-tilger.at", pageWidth / 2, fy + 4, { align: "center" });
   pdf.text(`IBAN: ${bank.iban} · BIC: ${bank.bic}`, pageWidth / 2, fy + 7.5, { align: "center" });
 
   return pdf.output("blob");
