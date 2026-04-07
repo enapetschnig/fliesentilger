@@ -140,8 +140,8 @@ export default function InvoiceTemplates() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.beschreibung.trim()) {
-      toast({ variant: "destructive", title: "Fehler", description: "Name und Beschreibung sind erforderlich" });
+    if (!(form.kurzbezeichnung || form.name).trim()) {
+      toast({ variant: "destructive", title: "Fehler", description: "Kurzbezeichnung ist erforderlich" });
       return;
     }
 
