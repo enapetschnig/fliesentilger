@@ -1040,21 +1040,34 @@ export default function Admin() {
               </div>
               <div className="flex gap-2">
                 <Input
+                  id="neue-einheit-input"
                   placeholder="Neue Einheit hinzufügen..."
                   className="max-w-xs"
-                  onKeyDown={async (e) => {
+                  onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      const val = (e.target as HTMLInputElement).value.trim();
-                      if (val && !einheitenStr.split(",").map(x => x.trim()).includes(val)) {
-                        const updated = einheitenStr ? `${einheitenStr},${val}` : val;
-                        setEinheitenStr(updated);
-                        (e.target as HTMLInputElement).value = "";
-                        await supabase.from("app_settings").upsert({ key: "einheiten", value: updated, updated_at: new Date().toISOString() });
-                        toast({ title: `"${val}" hinzugefügt` });
-                      }
+                      e.preventDefault();
+                      (document.getElementById("btn-einheit-add") as HTMLButtonElement)?.click();
                     }
                   }}
                 />
+                <Button
+                  id="btn-einheit-add"
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const input = document.getElementById("neue-einheit-input") as HTMLInputElement;
+                    const val = input?.value?.trim();
+                    if (!val) { toast({ variant: "destructive", title: "Bitte Einheit eingeben" }); return; }
+                    if (einheitenStr.split(",").map(x => x.trim()).includes(val)) { toast({ title: `"${val}" existiert bereits` }); return; }
+                    const updated = einheitenStr ? `${einheitenStr},${val}` : val;
+                    setEinheitenStr(updated);
+                    input.value = "";
+                    await supabase.from("app_settings").upsert({ key: "einheiten", value: updated, updated_at: new Date().toISOString() });
+                    toast({ title: `"${val}" hinzugefügt` });
+                  }}
+                >
+                  + Hinzufügen
+                </Button>
                 <Button
                   onClick={async () => {
                     setSavingSettings(true);
