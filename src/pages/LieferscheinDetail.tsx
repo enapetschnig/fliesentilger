@@ -69,6 +69,14 @@ export default function LieferscheinDetail() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const isAbgeschlossen = lsStatus === "abgeschlossen";
 
+  // Quick-add inline (like Rechnungen)
+  const [quickMaterial, setQuickMaterial] = useState("");
+  const [quickMenge, setQuickMenge] = useState("1");
+  const [quickEinheit, setQuickEinheit] = useState("Stk.");
+  const [quickPreis, setQuickPreis] = useState(0);
+  const [quickAcOpen, setQuickAcOpen] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+
   useEffect(() => {
     init();
   }, [id]);
@@ -82,6 +90,9 @@ export default function LieferscheinDetail() {
     const { data: prjData } = await supabase.from("projects").select("id, name").eq("status", "aktiv").order("name");
     if (prjData) setProjects(prjData);
     await fetchData();
+    // Load templates for autocomplete
+    const { data: tplData } = await supabase.from("invoice_templates").select("*").order("kategorie, name").limit(5000);
+    if (tplData) setTemplates(tplData);
     setLoading(false);
   };
 
@@ -237,6 +248,19 @@ export default function LieferscheinDetail() {
       fetchData();
     }
     setSubmitting(false);
+  };
+
+  const handleQuickAdd = async () => {
+    if (!quickMaterial.trim() || !currentUserId || !id) return;
+    await supabase.from("material_entries").insert({
+      lieferschein_id: id, project_id: null, user_id: currentUserId,
+      material: quickMaterial.trim(), menge: quickMenge || "1", einheit: quickEinheit,
+      einzelpreis: quickPreis, typ: "entnahme", notizen: null,
+      datum: new Date().toISOString().split("T")[0],
+    });
+    toast({ title: `${quickMenge} ${quickEinheit} ${quickMaterial} entnommen` });
+    setQuickMaterial(""); setQuickMenge("1"); setQuickEinheit("Stk."); setQuickPreis(0); setQuickAcOpen(false);
+    fetchData();
   };
 
   const handleDelete = async (entryId: string) => {
@@ -445,6 +469,77 @@ export default function LieferscheinDetail() {
                   </div>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick-Add: Material direkt eingeben mit Autocomplete */}
+        {!isAbgeschlossen && (
+          <Card className="border-orange-100">
+            <CardContent className="p-3">
+              <div className="space-y-2">
+                <div className="relative">
+                  <Input
+                    value={quickMaterial}
+                    onChange={(e) => { setQuickMaterial(e.target.value); setQuickAcOpen(true); }}
+                    onFocus={() => setQuickAcOpen(true)}
+                    onBlur={() => setTimeout(() => setQuickAcOpen(false), 200)}
+                    placeholder="Material eingeben oder suchen..."
+                    className="pr-10"
+                  />
+                  {/* Autocomplete dropdown */}
+                  {quickAcOpen && quickMaterial.length >= 2 && (() => {
+                    const q = quickMaterial.toLowerCase();
+                    const results = templates.filter((t: any) => {
+                      const kb = (t.kurzbezeichnung || t.name || "").toLowerCase();
+                      const pn = (t.produktnummer || "").toLowerCase();
+                      return kb.includes(q) || pn.includes(q);
+                    }).slice(0, 15);
+                    if (results.length === 0) return null;
+                    return (
+                      <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border rounded-md shadow-lg max-h-56 overflow-y-auto">
+                        {results.map((t: any) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent flex justify-between gap-2"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setQuickMaterial(t.kurzbezeichnung || t.name);
+                              setQuickEinheit(t.einheit || "Stk.");
+                              setQuickPreis(Number(t.netto_preis || t.einzelpreis) || 0);
+                              setQuickAcOpen(false);
+                            }}
+                          >
+                            <span className="truncate">{t.kurzbezeichnung || t.name}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{t.einheit}</span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="number"
+                    value={quickMenge}
+                    onChange={(e) => setQuickMenge(e.target.value)}
+                    min={0.1}
+                    step={0.1}
+                    className="w-20 text-center"
+                    placeholder="Menge"
+                  />
+                  <span className="text-sm text-muted-foreground w-12 shrink-0">{quickEinheit}</span>
+                  <Button
+                    className="flex-1 gap-2 bg-orange-600 hover:bg-orange-700"
+                    disabled={!quickMaterial.trim()}
+                    onClick={handleQuickAdd}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Entnehmen
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
