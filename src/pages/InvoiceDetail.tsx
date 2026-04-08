@@ -491,7 +491,7 @@ export default function InvoiceDetail() {
   const restBetrag = r2(bruttoSumme - form.bezahlt_betrag);
 
   const canDelete = form.typ === "angebot";
-  const canCancel = !isNew && !!invoiceId && id !== "new" && form.typ === "rechnung" && form.status !== "storniert";
+  const canCancel = !isNew && !!invoiceId && id !== "new" && form.typ === "rechnung" && form.status !== "storniert" && form.status !== "entwurf";
 
   const handleSave = async (asDraft?: boolean): Promise<boolean> => {
     // Double-click protection
@@ -2186,7 +2186,7 @@ export default function InvoiceDetail() {
               </>
             ) : (
               <>
-                {!isNew && invoiceId && (
+                {!isNew && invoiceId && !(form.typ === "rechnung" && form.status === "entwurf") && (
                   <>
                     <Button onClick={handleDownloadPdf} variant="outline" className="gap-2">
                       <Download className="w-4 h-4" />
