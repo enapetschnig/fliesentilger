@@ -1059,7 +1059,9 @@ export default function InvoiceDetail() {
 
   if (loading) return <div className="text-center py-8">Lädt...</div>;
 
-  const typLabel = form.typ === "rechnung" ? "Rechnung" : "Angebot";
+  const typLabel = form.typ === "rechnung"
+    ? (form.status === "entwurf" ? "Rechnung (Entwurf)" : "Rechnung")
+    : "Angebot";
 
   const groupedTemplates = templates.reduce<Record<string, TemplateItem[]>>((acc, t) => {
     (acc[t.kategorie] = acc[t.kategorie] || []).push(t);
@@ -2196,7 +2198,7 @@ export default function InvoiceDetail() {
                     </Button>
                   </>
                 )}
-                {form.typ === "rechnung" && (
+                {form.typ === "rechnung" && (isNew || form.status === "entwurf") && (
                   <Button onClick={async () => {
                     const ok = await handleSave(true);
                     if (ok) toast({ title: "Entwurf gespeichert" });
@@ -2367,11 +2369,11 @@ export default function InvoiceDetail() {
           open={previewOpen}
           onClose={() => setPreviewOpen(false)}
           onSave={handleSaveFromPreview}
-          onSaveDraft={form.typ === "rechnung" ? handleSaveDraftFromPreview : undefined}
+          onSaveDraft={form.typ === "rechnung" && (isNew || form.status === "entwurf") ? handleSaveDraftFromPreview : undefined}
           onSavedClose={() => navigate("/invoices")}
           saving={saving}
           saved={previewSaved}
-          saveLabel={form.typ === "rechnung" ? "Rechnung erstellen" : undefined}
+          saveLabel={form.typ === "rechnung" && (isNew || form.status === "entwurf") ? "Rechnung erstellen" : undefined}
           fileName={form.nummer || (form.typ === "angebot" ? "Angebot" : "Rechnung")}
           formData={{
             typ: form.typ,

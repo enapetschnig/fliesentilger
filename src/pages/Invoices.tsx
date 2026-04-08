@@ -639,7 +639,7 @@ export default function Invoices() {
                           <TableCell className="font-mono font-medium">{inv.nummer}</TableCell>
                           <TableCell>
                             <Badge variant={inv.typ === "rechnung" ? "default" : "secondary"}>
-                              {inv.typ === "rechnung" ? "Rechnung" : "Angebot"}
+                              {inv.typ === "rechnung" ? (inv.status === "entwurf" ? "Rechnung (Entwurf)" : "Rechnung") : "Angebot"}
                             </Badge>
                           </TableCell>
                           <TableCell>{inv.kunde_name}</TableCell>
