@@ -39,6 +39,7 @@ interface InvoicePdfPreviewProps {
   open: boolean;
   onClose: () => void;
   onSave?: () => Promise<void> | void;
+  onSaveDraft?: () => Promise<void> | void;
   onSavedClose?: () => void;
   saving?: boolean;
   saved?: boolean;
@@ -46,12 +47,14 @@ interface InvoicePdfPreviewProps {
   formData?: InvoiceHtmlData;
   items?: InvoiceHtmlItem[];
   fileName?: string;
+  saveLabel?: string;
 }
 
 export function InvoicePdfPreview({
   open,
   onClose,
   onSave,
+  onSaveDraft,
   onSavedClose,
   saving,
   saved,
@@ -59,6 +62,7 @@ export function InvoicePdfPreview({
   formData,
   items,
   fileName,
+  saveLabel,
 }: InvoicePdfPreviewProps) {
   const [generating, setGenerating] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -174,11 +178,16 @@ export function InvoicePdfPreview({
           <div className="flex gap-2 flex-wrap items-center">
             {mustSaveFirst && (
               <>
+                {onSaveDraft && (
+                  <Button size="sm" variant="outline" onClick={onSaveDraft} disabled={saving} className="gap-2">
+                    <Save className="h-4 w-4" />
+                    Entwurf speichern
+                  </Button>
+                )}
                 <Button size="sm" onClick={onSave} disabled={saving} className="gap-2 bg-green-600 hover:bg-green-700">
                   <Save className="h-4 w-4" />
-                  {saving ? "Speichert..." : "Speichern"}
+                  {saving ? "Speichert..." : (saveLabel || "Speichern")}
                 </Button>
-                <span className="text-sm text-muted-foreground">Zuerst speichern, dann herunterladen</span>
               </>
             )}
             {!mustSaveFirst && (

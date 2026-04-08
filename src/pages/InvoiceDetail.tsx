@@ -197,7 +197,7 @@ export default function InvoiceDetail() {
     nummer: "",
     laufnummer: 0,
     jahr: new Date().getFullYear(),
-    status: defaultTyp === "rechnung" ? "offen" : "entwurf",
+    status: "entwurf",
     kunde_name: "",
     kunde_adresse: "",
     kunde_plz: "",
@@ -229,8 +229,8 @@ export default function InvoiceDetail() {
 
   // Locked = already saved (not draft) — can only view, download, storno/delete
   // Rechnungen: komplett locked nach Speichern. Angebote: Positionen + Kundendaten editierbar
-  const isLocked = !isNew && id !== "new" && !!invoiceId && form.typ === "rechnung";
-  const isKundeLocked = !isNew && id !== "new" && !!invoiceId && form.typ === "rechnung";
+  const isLocked = !isNew && id !== "new" && !!invoiceId && form.typ === "rechnung" && form.status !== "entwurf";
+  const isKundeLocked = !isNew && id !== "new" && !!invoiceId && form.typ === "rechnung" && form.status !== "entwurf";
 
   // Angebot→Rechnung Vergleichs-Dialog
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
@@ -493,7 +493,7 @@ export default function InvoiceDetail() {
   const canDelete = form.typ === "angebot";
   const canCancel = !isNew && !!invoiceId && id !== "new" && form.typ === "rechnung" && form.status !== "storniert";
 
-  const handleSave = async (): Promise<boolean> => {
+  const handleSave = async (asDraft?: boolean): Promise<boolean> => {
     // Double-click protection
     if (saving) return false;
 
@@ -577,8 +577,15 @@ export default function InvoiceDetail() {
         fetchCustomers();
       }
 
-      // Rechnungen sind immer mindestens "offen", Angebote behalten ihren Status (auch "entwurf")
-      const saveStatus = form.typ === "rechnung" ? "offen" : (form.status || "offen");
+      // asDraft=true → Entwurf, asDraft=false/undefined → final (offen für Rechnungen)
+      let saveStatus: string;
+      if (asDraft) {
+        saveStatus = "entwurf";
+      } else if (form.typ === "rechnung") {
+        saveStatus = "offen";
+      } else {
+        saveStatus = form.status || "offen";
+      }
 
       const invoicePayload = {
         status: saveStatus,
@@ -708,10 +715,17 @@ export default function InvoiceDetail() {
   };
 
   const handleSaveFromPreview = async () => {
-    const success = await handleSave();
+    const success = await handleSave(false);
     if (success) {
       setPreviewSaved(true);
-      toast({ title: "Gespeichert" });
+      toast({ title: form.typ === "rechnung" ? "Rechnung erstellt" : "Gespeichert" });
+    }
+  };
+
+  const handleSaveDraftFromPreview = async () => {
+    const success = await handleSave(true);
+    if (success) {
+      toast({ title: "Entwurf gespeichert" });
     }
   };
 
@@ -2182,6 +2196,15 @@ export default function InvoiceDetail() {
                     </Button>
                   </>
                 )}
+                {form.typ === "rechnung" && (
+                  <Button onClick={async () => {
+                    const ok = await handleSave(true);
+                    if (ok) toast({ title: "Entwurf gespeichert" });
+                  }} variant="outline" className="gap-2">
+                    <Save className="w-4 h-4" />
+                    Entwurf speichern
+                  </Button>
+                )}
                 <Button onClick={handlePreview} className="gap-2">
                   <Eye className="w-4 h-4" />
                   Vorschau
@@ -2344,9 +2367,11 @@ export default function InvoiceDetail() {
           open={previewOpen}
           onClose={() => setPreviewOpen(false)}
           onSave={handleSaveFromPreview}
+          onSaveDraft={form.typ === "rechnung" ? handleSaveDraftFromPreview : undefined}
           onSavedClose={() => navigate("/invoices")}
           saving={saving}
           saved={previewSaved}
+          saveLabel={form.typ === "rechnung" ? "Rechnung erstellen" : undefined}
           fileName={form.nummer || (form.typ === "angebot" ? "Angebot" : "Rechnung")}
           formData={{
             typ: form.typ,
