@@ -122,19 +122,18 @@ test.describe("Rechnungen & Angebote", () => {
 });
 
 test.describe("Material / Lieferscheine", () => {
-  test("material page loads", async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await login(page);
-    // Try both possible routes
     await page.goto("/material");
     await page.waitForLoadState("networkidle");
-    const body = await page.textContent("body");
-    const loaded = body?.includes("Material") || body?.includes("Lieferschein");
-    if (!loaded) {
-      await page.goto("/material-withdraw");
-      await page.waitForLoadState("networkidle");
-    }
-    const finalBody = await page.textContent("body");
-    expect(finalBody).toBeTruthy();
+  });
+
+  test("material page loads", async ({ page }) => {
+    await expect(page.locator("h1")).toContainText("Material");
+  });
+
+  test("new lieferschein button exists", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /Neuer Lieferschein/i })).toBeVisible();
   });
 });
 
@@ -194,11 +193,10 @@ test.describe("Security", () => {
 
   test("XSS payload treated as text", async ({ page }) => {
     await login(page);
-    await page.goto("/invoices/new?typ=angebot");
+    await page.goto("/invoices/new?typ=rechnung");
     await page.waitForLoadState("networkidle");
     const xss = '<script>alert("xss")</script>';
-    // Use the Betreff textarea which is always visible and accepts text
-    const input = page.locator('textarea').first();
+    const input = page.locator("input").first();
     await input.fill(xss);
     const value = await input.inputValue();
     expect(value).toBe(xss);

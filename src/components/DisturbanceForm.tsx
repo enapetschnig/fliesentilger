@@ -77,15 +77,11 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
   const [materials, setMaterials] = useState<MaterialEntry[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
-  const [projects, setProjects] = useState<{ id: string; name: string; customer_id: string | null }[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("none");
 
   useEffect(() => {
     if (open) {
       supabase.from("customers").select("id, name, adresse, plz, ort, email, telefon, uid_nummer").order("name")
         .then(({ data }) => { if (data) setCustomers(data); });
-      supabase.from("projects").select("id, name, customer_id").eq("status", "aktiv").order("name")
-        .then(({ data }) => { if (data) setProjects(data); });
     }
   }, [open]);
 
@@ -477,42 +473,6 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Project Selection */}
-          <div>
-            <Label>Projekt (optional)</Label>
-            <Select value={selectedProjectId} onValueChange={async (v) => {
-              setSelectedProjectId(v);
-              if (v !== "none") {
-                const proj = projects.find(p => p.id === v);
-                if (proj?.customer_id) {
-                  const { data: cust } = await supabase.from("customers")
-                    .select("name, adresse, plz, ort, email, telefon")
-                    .eq("id", proj.customer_id).single();
-                  if (cust) {
-                    setFormData(prev => ({
-                      ...prev,
-                      kundeName: cust.name || prev.kundeName,
-                      kundeAdresse: cust.adresse || prev.kundeAdresse,
-                      kundePlz: cust.plz || prev.kundePlz,
-                      kundeOrt: cust.ort || prev.kundeOrt,
-                      kundeEmail: cust.email || prev.kundeEmail,
-                      kundeTelefon: cust.telefon || prev.kundeTelefon,
-                    }));
-                    toast({ title: "Kundendaten vom Projekt übernommen" });
-                  }
-                }
-              }
-            }}>
-              <SelectTrigger><SelectValue placeholder="Projekt wählen..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Kein Projekt</SelectItem>
-                {projects.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Customer Section */}

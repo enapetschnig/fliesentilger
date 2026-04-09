@@ -174,7 +174,7 @@ export default function HoursReport() {
     const [sh, sm] = start.split(":").map(Number);
     const [eh, em] = end.split(":").map(Number);
     const totalMin = (eh * 60 + em) - (sh * 60 + sm) - pause;
-    return Math.max(0, Math.round(totalMin / 60 * 10000) / 10000);
+    return Math.max(0, Math.round(totalMin / 60 * 100) / 100);
   };
 
   const handleEditSave = async () => {
@@ -378,8 +378,8 @@ export default function HoursReport() {
               actualPauseText,
               actualAfternoonStart,
               entry.end_time?.substring(0, 5) || "",
-              Number(entry.stunden.toFixed(4)),
-              overtime > 0 ? Number(overtime.toFixed(4)) : "",
+              entry.stunden.toFixed(2),
+              overtimeText,
               ortText,
               projektName,
               entry.taetigkeit,
@@ -421,7 +421,7 @@ export default function HoursReport() {
           const dayTotalHours = dayEntries.reduce((sum, e) => sum + e.stunden, 0);
           const dayTotalOvertime = dayEntries.reduce((sum, e) => sum + calculateOvertime(dayDate, e.stunden), 0);
           if (includeOvertime) {
-            worksheetData.push(["", "", "", "", "", "Tagessumme:", Number(dayTotalHours.toFixed(4)), dayTotalOvertime > 0 ? Number(dayTotalOvertime.toFixed(4)) : "", "", "", "", ""]);
+            worksheetData.push(["", "", "", "", "", "Tagessumme:", dayTotalHours.toFixed(2), dayTotalOvertime > 0 ? dayTotalOvertime.toFixed(2) : "", "", "", "", ""]);
           } else {
             // Tagessumme mit Regelarbeitszeit
             const dayOfWeek = dayDate.getDay();
@@ -454,7 +454,7 @@ export default function HoursReport() {
 
     // Summenzeile mit oder ohne Überstunden
     if (includeOvertime) {
-      worksheetData.push(["", "", "", "", "", "SUMME", Number(totalHours.toFixed(4)), Number(totalOvertime.toFixed(4)), "", "", "", ""]);
+      worksheetData.push(["", "", "", "", "", "SUMME", totalHours.toFixed(2), totalOvertime.toFixed(2), "", "", "", ""]);
     } else {
       const regelarbeitszeitSumme = calculateRegelarbeitszeitSumme();
       worksheetData.push(["", "", "", "", "", "SUMME", regelarbeitszeitSumme.toFixed(2), "", "", "", "", ""]);
