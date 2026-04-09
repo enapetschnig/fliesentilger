@@ -234,7 +234,8 @@ export default function HoursReport() {
 
   const calculateOvertime = (date: Date, totalHours: number): number => {
     const normalHours = getNormalWorkingHours(date);
-    return Math.max(0, totalHours - normalHours);
+    // Minusstunden werden jetzt auch berechnet (nicht mehr Math.max(0))
+    return totalHours - normalHours;
   };
 
   const calculateLunchBreak = (entry: TimeEntry) => {
@@ -369,7 +370,7 @@ export default function HoursReport() {
               : "";
             
             const overtime = calculateOvertime(dayDate, entry.stunden);
-            const overtimeText = overtime > 0 ? overtime.toFixed(2) : "";
+            const overtimeText = overtime !== 0 ? overtime.toFixed(2) : "";
 
             worksheetData.push([
               displayDay,
@@ -421,7 +422,7 @@ export default function HoursReport() {
           const dayTotalHours = dayEntries.reduce((sum, e) => sum + e.stunden, 0);
           const dayTotalOvertime = dayEntries.reduce((sum, e) => sum + calculateOvertime(dayDate, e.stunden), 0);
           if (includeOvertime) {
-            worksheetData.push(["", "", "", "", "", "Tagessumme:", dayTotalHours.toFixed(2), dayTotalOvertime > 0 ? dayTotalOvertime.toFixed(2) : "", "", "", "", ""]);
+            worksheetData.push(["", "", "", "", "", "Tagessumme:", dayTotalHours.toFixed(2), dayTotalOvertime !== 0 ? dayTotalOvertime.toFixed(2) : "", "", "", "", ""]);
           } else {
             // Tagessumme mit Regelarbeitszeit
             const dayOfWeek = dayDate.getDay();
@@ -689,8 +690,10 @@ export default function HoursReport() {
                         <p className="text-2xl font-bold">{totalHours.toFixed(2)} h</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Überstunden</p>
-                        <p className="text-2xl font-bold">{totalOvertime.toFixed(2)} h</p>
+                        <p className="text-sm text-muted-foreground">{totalOvertime >= 0 ? "Überstunden" : "Minusstunden"}</p>
+                        <p className={`text-2xl font-bold ${totalOvertime >= 0 ? "text-orange-600" : "text-red-600"}`}>
+                          {totalOvertime >= 0 ? "+" : ""}{totalOvertime.toFixed(2)} h
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -792,9 +795,9 @@ export default function HoursReport() {
                                     )}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    {overtime > 0 && (
-                                      <span className="text-orange-600 font-medium">
-                                        +{overtime.toFixed(2)} h
+                                    {overtime !== 0 && (
+                                      <span className={`font-medium ${overtime > 0 ? "text-orange-600" : "text-red-600"}`}>
+                                        {overtime > 0 ? "+" : ""}{overtime.toFixed(2)} h
                                       </span>
                                     )}
                                   </TableCell>
@@ -831,8 +834,8 @@ export default function HoursReport() {
                           <TableCell className="text-right font-bold">
                             {totalHours.toFixed(2)} h
                           </TableCell>
-                          <TableCell className="text-right font-bold text-orange-600">
-                            {totalOvertime.toFixed(2)} h
+                          <TableCell className={`text-right font-bold ${totalOvertime >= 0 ? "text-orange-600" : "text-red-600"}`}>
+                            {totalOvertime >= 0 ? "+" : ""}{totalOvertime.toFixed(2)} h
                           </TableCell>
                           <TableCell colSpan={isAdmin ? 4 : 3}></TableCell>
                         </TableRow>
