@@ -98,7 +98,7 @@ const Projects = () => {
   const fetchProjects = async () => {
     const { data, error } = await supabase
       .from("projects")
-      .select("*")
+      .select("*, customers(name)")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -453,8 +453,12 @@ const Projects = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-base sm:text-xl truncate">{project.name}</CardTitle>
-                      {project.adresse && (
-                        <CardDescription className="text-xs sm:text-sm">{project.adresse}</CardDescription>
+                      {((project as any).customers?.name || project.adresse) && (
+                        <CardDescription className="text-xs sm:text-sm">
+                          {(project as any).customers?.name && <span className="font-medium">{(project as any).customers.name}</span>}
+                          {(project as any).customers?.name && project.adresse && <span> · </span>}
+                          {project.adresse}
+                        </CardDescription>
                       )}
                     </div>
                   </div>
@@ -626,8 +630,12 @@ const Projects = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-base sm:text-xl truncate">{project.name}</CardTitle>
-                            {project.adresse && (
-                              <CardDescription className="text-xs sm:text-sm">{project.adresse}</CardDescription>
+                            {((project as any).customers?.name || project.adresse) && (
+                              <CardDescription className="text-xs sm:text-sm">
+                                {(project as any).customers?.name && <span className="font-medium">{(project as any).customers.name}</span>}
+                                {(project as any).customers?.name && project.adresse && <span> · </span>}
+                                {project.adresse}
+                              </CardDescription>
                             )}
                           </div>
                         </div>
