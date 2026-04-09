@@ -46,6 +46,7 @@ export function QuickUploadDialog({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFolder, setSelectedFolder] = useState(subfolder || "allgemein");
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -69,7 +70,8 @@ export function QuickUploadDialog({
 
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i];
-      const basePath = subfolder ? `${projectId}/${subfolder}` : projectId;
+      const folder = documentType === "photos" ? selectedFolder : null;
+      const basePath = folder ? `${projectId}/${folder}` : projectId;
       const filePath = `${basePath}/${Date.now()}_${file.name}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -128,13 +130,33 @@ export function QuickUploadDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{subfolder ? subfolderLabels[subfolder] || subfolder : titleMap[documentType]} hochladen</DialogTitle>
+          <DialogTitle>Fotos hochladen</DialogTitle>
           <DialogDescription>
             Wähle Dateien zum Hochladen aus
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Folder selection for photos */}
+          {documentType === "photos" && (
+            <div className="flex gap-1.5">
+              {[
+                { key: "allgemein", label: "Allgemein" },
+                { key: "rechnungen", label: "Rechnungen" },
+                { key: "lieferscheine", label: "Lieferscheine" },
+              ].map(f => (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`flex-1 text-xs py-1.5 px-2 rounded-md border transition-colors ${selectedFolder === f.key ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
+                  onClick={() => setSelectedFolder(f.key)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Drag & Drop Zone */}
           <label htmlFor="file-upload" className="cursor-pointer">
             <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">

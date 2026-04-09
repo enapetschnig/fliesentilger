@@ -286,13 +286,14 @@ const Projects = () => {
     }
   };
 
-  const handlePhotoCapture = async (file: File) => {
+  const handlePhotoCapture = async (file: File, subfolder?: string) => {
     if (!quickUploadProject) {
       throw new Error("Kein Projekt ausgewählt");
     }
 
     const timestamp = Date.now();
-    const filePath = `${quickUploadProject.projectId}/${timestamp}_${file.name}`;
+    const basePath = subfolder ? `${quickUploadProject.projectId}/${subfolder}` : `${quickUploadProject.projectId}/allgemein`;
+    const filePath = `${basePath}/${timestamp}_${file.name}`;
     
     const { error: uploadError } = await supabase
       .storage
@@ -537,29 +538,15 @@ const Projects = () => {
                       e.stopPropagation();
                       setQuickUploadProject({ projectId: project.id, documentType: 'photos' });
                     }}>
-                      <Camera className="w-4 h-4 mr-2" />
-                      Allgemeine Fotos
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setQuickUploadProject({ projectId: project.id, documentType: 'photos', subfolder: 'rechnungen' } as any);
-                    }}>
-                      <FileText className="w-4 h-4 mr-2" />
-                      Rechnungen
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setQuickUploadProject({ projectId: project.id, documentType: 'photos', subfolder: 'lieferscheine' } as any);
-                    }}>
-                      <Package className="w-4 h-4 mr-2" />
-                      Lieferscheine
+                      <Upload className="w-4 h-4 mr-2" />
+                      Foto hochladen
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
                       setQuickUploadProject({ projectId: project.id, documentType: 'plans' });
                     }}>
                       <FileText className="w-4 h-4 mr-2" />
-                      Pläne
+                      Pläne hochladen
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

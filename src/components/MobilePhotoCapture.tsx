@@ -7,13 +7,14 @@ import { toast } from "@/hooks/use-toast";
 interface MobilePhotoCaptureProps {
   open: boolean;
   onClose: () => void;
-  onPhotoCapture: (file: File) => Promise<void>;
+  onPhotoCapture: (file: File, subfolder?: string) => Promise<void>;
 }
 
 export function MobilePhotoCapture({ open, onClose, onPhotoCapture }: MobilePhotoCaptureProps) {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState("allgemein");
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,7 +103,7 @@ export function MobilePhotoCapture({ open, onClose, onPhotoCapture }: MobilePhot
       const timestamp = Date.now();
       const file = new File([blob], `photo_${timestamp}.jpg`, { type: 'image/jpeg' });
 
-      await onPhotoCapture(file);
+      await onPhotoCapture(file, selectedFolder);
       
       toast({
         title: "Erfolg",
@@ -234,9 +235,28 @@ export function MobilePhotoCapture({ open, onClose, onPhotoCapture }: MobilePhot
                 />
               </div>
               
-              <div className="sticky bottom-0 bg-card/95 border-t p-3 flex flex-col sm:flex-row gap-2">
-                <Button 
-                  onClick={handleUpload} 
+              <div className="sticky bottom-0 bg-card/95 border-t p-3 space-y-2">
+                <div className="flex gap-1.5">
+                  {[
+                    { key: "allgemein", label: "Allgemein" },
+                    { key: "rechnungen", label: "Rechnungen" },
+                    { key: "lieferscheine", label: "Lieferscheine" },
+                  ].map(f => (
+                    <Button
+                      key={f.key}
+                      type="button"
+                      variant={selectedFolder === f.key ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => setSelectedFolder(f.key)}
+                    >
+                      {f.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  onClick={handleUpload}
                   disabled={uploading}
                   className="flex-1"
                 >
@@ -265,6 +285,7 @@ export function MobilePhotoCapture({ open, onClose, onPhotoCapture }: MobilePhot
                   <X className="w-4 h-4 mr-2" />
                   Abbrechen
                 </Button>
+                </div>
               </div>
             </>
           )}
