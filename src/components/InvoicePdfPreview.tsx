@@ -67,6 +67,8 @@ export function InvoicePdfPreview({
   const [generating, setGenerating] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Mobile detection: iframe PDF preview unzuverlässig auf Mobile (zeigt nur Platzhalter)
+  const isMobile = typeof navigator !== "undefined" && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const formDataRef = useRef(formData);
   const itemsRef = useRef(items);
@@ -232,7 +234,29 @@ export function InvoicePdfPreview({
               </div>
             </div>
           ) : pdfUrl ? (
-            <iframe src={pdfUrl} className="w-full h-full border-0" title="PDF Preview" />
+            isMobile ? (
+              <div className="flex items-center justify-center h-full p-6">
+                <div className="text-center max-w-sm">
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
+                    <span className="text-red-600 font-bold text-lg">PDF</span>
+                  </div>
+                  <p className="font-medium mb-1">{fileName || "Dokument"}</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Auf Mobile wird das PDF in einem neuen Tab geöffnet.
+                  </p>
+                  <Button onClick={() => window.open(pdfUrl, "_blank")} className="gap-2 w-full">
+                    <Download className="h-4 w-4" />
+                    PDF öffnen
+                  </Button>
+                  <Button variant="outline" onClick={handleDownload} className="gap-2 w-full mt-2">
+                    <Download className="h-4 w-4" />
+                    PDF herunterladen
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <iframe src={pdfUrl} className="w-full h-full border-0" title="PDF Preview" />
+            )
           ) : null}
         </div>
       </DialogContent>
