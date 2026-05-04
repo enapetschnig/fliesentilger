@@ -74,6 +74,7 @@ interface InvoiceData {
   datum: string;
   faellig_am: string;
   leistungsdatum: string;
+  leistungsdatum_bis: string;
   zahlungsbedingungen: string;
   notizen: string;
   betreff: string;
@@ -209,6 +210,7 @@ export default function InvoiceDetail() {
     datum: format(new Date(), "yyyy-MM-dd"),
     faellig_am: format(new Date(Date.now() + 14 * 86400000), "yyyy-MM-dd"),
     leistungsdatum: format(new Date(), "yyyy-MM-dd"),
+    leistungsdatum_bis: "",
     zahlungsbedingungen: "14 Tage",
     notizen: "",
     betreff: "",
@@ -271,6 +273,7 @@ export default function InvoiceDetail() {
             customer_id: data.customer_id || null,
             project_id: data.project_id || null,
             leistungsdatum: data.leistungsdatum || "",
+            leistungsdatum_bis: data.leistungsdatum_bis || "",
             zahlungsbedingungen: data.zahlungsbedingungen || "",
             notizen: data.notizen || "",
             betreff: data.betreff || "",
@@ -356,6 +359,7 @@ export default function InvoiceDetail() {
       datum: data.datum,
       faellig_am: data.faellig_am || "",
       leistungsdatum: data.leistungsdatum || "",
+      leistungsdatum_bis: (data as any).leistungsdatum_bis || "",
       zahlungsbedingungen: data.zahlungsbedingungen || "",
       notizen: data.notizen || "",
       betreff: (data as any).betreff || "",
@@ -603,6 +607,7 @@ export default function InvoiceDetail() {
         datum: form.datum,
         faellig_am: form.faellig_am || null,
         leistungsdatum: form.leistungsdatum || null,
+        leistungsdatum_bis: form.leistungsdatum_bis || null,
         zahlungsbedingungen: form.zahlungsbedingungen || null,
         notizen: form.notizen || null,
         betreff: form.betreff || null,
@@ -916,6 +921,7 @@ export default function InvoiceDetail() {
           datum: format(new Date(), "yyyy-MM-dd"),
           faellig_am: null,
           leistungsdatum: form.leistungsdatum || null,
+          leistungsdatum_bis: form.leistungsdatum_bis || null,
           zahlungsbedingungen: form.zahlungsbedingungen || null,
           notizen: form.notizen || null,
           netto_summe: nettoSumme,
@@ -972,7 +978,7 @@ export default function InvoiceDetail() {
       kunde_land: form.kunde_land, kunde_email: form.kunde_email,
       kunde_telefon: form.kunde_telefon, kunde_uid: form.kunde_uid,
       customer_id: form.customer_id, project_id: form.project_id,
-      leistungsdatum: form.leistungsdatum, zahlungsbedingungen: form.zahlungsbedingungen,
+      leistungsdatum: form.leistungsdatum, leistungsdatum_bis: form.leistungsdatum_bis, zahlungsbedingungen: form.zahlungsbedingungen,
       notizen: form.notizen, mwst_satz: form.mwst_satz,
       rabatt_prozent: form.rabatt_prozent, rabatt_betrag: form.rabatt_betrag,
       skonto_prozent: form.skonto_prozent, skonto_tage: form.skonto_tage,
@@ -1689,8 +1695,19 @@ export default function InvoiceDetail() {
                 </div>
                 {form.typ === "rechnung" && (
                   <div>
-                    <Label>Leistungsdatum</Label>
+                    <Label>Leistungsdatum (von)</Label>
                     <Input type="date" value={form.leistungsdatum} onChange={(e) => updateField("leistungsdatum", e.target.value)} />
+                  </div>
+                )}
+                {form.typ === "rechnung" && (
+                  <div>
+                    <Label>Leistungsdatum (bis, optional)</Label>
+                    <Input
+                      type="date"
+                      value={form.leistungsdatum_bis}
+                      onChange={(e) => updateField("leistungsdatum_bis", e.target.value)}
+                      min={form.leistungsdatum || undefined}
+                    />
                   </div>
                 )}
                 {form.typ === "rechnung" && (
@@ -2393,6 +2410,7 @@ export default function InvoiceDetail() {
             datum: form.datum,
             faellig_am: form.faellig_am,
             leistungsdatum: form.leistungsdatum,
+            leistungsdatum_bis: form.leistungsdatum_bis,
             gueltig_bis: form.gueltig_bis,
             zahlungsbedingungen: form.zahlungsbedingungen,
             notizen: form.notizen,

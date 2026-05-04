@@ -57,6 +57,7 @@ export interface InvoiceHtmlData {
   datum: string;
   faellig_am?: string | null;
   leistungsdatum?: string | null;
+  leistungsdatum_bis?: string | null;
   gueltig_bis?: string | null;
   zahlungsbedingungen?: string | null;
   notizen?: string | null;
@@ -113,6 +114,9 @@ export function buildInvoiceHtml(
   const leistungFormatted = invoice.leistungsdatum
     ? new Date(invoice.leistungsdatum).toLocaleDateString("de-AT")
     : null;
+  const leistungBisFormatted = invoice.leistungsdatum_bis
+    ? new Date(invoice.leistungsdatum_bis).toLocaleDateString("de-AT")
+    : null;
   const gueltigBisFormatted = invoice.gueltig_bis
     ? new Date(invoice.gueltig_bis).toLocaleDateString("de-AT")
     : null;
@@ -168,10 +172,21 @@ export function buildInvoiceHtml(
   metaParts.push(
     `<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`
   );
-  if (!isAngebot && leistungFormatted)
-    metaParts.push(
-      `<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`
-    );
+  if (!isAngebot) {
+    if (leistungFormatted && leistungBisFormatted) {
+      metaParts.push(
+        `<div><span class="meta-label">Leistungszeitraum</span><span class="meta-value">${leistungFormatted} – ${leistungBisFormatted}</span></div>`
+      );
+    } else if (leistungFormatted) {
+      metaParts.push(
+        `<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`
+      );
+    } else if (leistungBisFormatted) {
+      metaParts.push(
+        `<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungBisFormatted}</span></div>`
+      );
+    }
+  }
   if (!isAngebot && faelligFormatted)
     metaParts.push(
       `<div><span class="meta-label">Fällig am</span><span class="meta-value">${faelligFormatted}</span></div>`

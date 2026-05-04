@@ -126,7 +126,17 @@ export async function generateInvoicePdf(
     ["Belegdatum", datumFormatted],
   ];
   if (invoice.kunde_uid) metaRows.push(["Ihre UID", invoice.kunde_uid]);
-  if (!isAngebot && invoice.leistungsdatum) metaRows.push(["Leistungsdatum", fmtDate(invoice.leistungsdatum!)]);
+  if (!isAngebot) {
+    const lFrom = invoice.leistungsdatum ? fmtDate(invoice.leistungsdatum) : null;
+    const lTo = (invoice as any).leistungsdatum_bis ? fmtDate((invoice as any).leistungsdatum_bis) : null;
+    if (lFrom && lTo) {
+      metaRows.push(["Leistungszeitraum", `${lFrom} – ${lTo}`]);
+    } else if (lFrom) {
+      metaRows.push(["Leistungsdatum", lFrom]);
+    } else if (lTo) {
+      metaRows.push(["Leistungsdatum", lTo]);
+    }
+  }
   if (kundennummer) metaRows.push(["Kundennr.", kundennummer]);
   if (!isAngebot && invoice.faellig_am) metaRows.push(["Fällig am", fmtDate(invoice.faellig_am!)]);
   if (invoice.gueltig_bis) metaRows.push(["Gültig bis", fmtDate(invoice.gueltig_bis!)]);

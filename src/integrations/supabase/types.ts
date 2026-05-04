@@ -667,6 +667,7 @@ export type Database = {
           kundennummer: string | null
           laufnummer: number
           leistungsdatum: string | null
+          leistungsdatum_bis: string | null
           mahnstufe: number | null
           mwst_betrag: number
           mwst_satz: number
@@ -713,6 +714,7 @@ export type Database = {
           kundennummer?: string | null
           laufnummer: number
           leistungsdatum?: string | null
+          leistungsdatum_bis?: string | null
           mahnstufe?: number | null
           mwst_betrag?: number
           mwst_satz?: number
@@ -759,6 +761,7 @@ export type Database = {
           kundennummer?: string | null
           laufnummer?: number
           leistungsdatum?: string | null
+          leistungsdatum_bis?: string | null
           mahnstufe?: number | null
           mwst_betrag?: number
           mwst_satz?: number

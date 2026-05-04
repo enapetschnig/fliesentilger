@@ -136,7 +136,7 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
                 kunde_land: inv.kunde_land, kunde_email: inv.kunde_email,
                 kunde_telefon: inv.kunde_telefon, kunde_uid: inv.kunde_uid,
                 datum: inv.datum, faellig_am: inv.faellig_am,
-                leistungsdatum: inv.leistungsdatum, gueltig_bis: inv.gueltig_bis,
+                leistungsdatum: inv.leistungsdatum, leistungsdatum_bis: (inv as any).leistungsdatum_bis, gueltig_bis: inv.gueltig_bis,
                 zahlungsbedingungen: inv.zahlungsbedingungen, notizen: inv.notizen,
                 netto_summe: Number(inv.netto_summe), mwst_satz: Number(inv.mwst_satz),
                 mwst_betrag: Number(inv.mwst_betrag), brutto_summe: Number(inv.brutto_summe),

@@ -24,6 +24,7 @@ function buildHtml(invoice: any, items: any[], bank: { kontoinhaber: string; iba
   const datumFormatted = new Date(invoice.datum).toLocaleDateString("de-AT");
   const faelligFormatted = invoice.faellig_am ? new Date(invoice.faellig_am).toLocaleDateString("de-AT") : null;
   const leistungFormatted = invoice.leistungsdatum ? new Date(invoice.leistungsdatum).toLocaleDateString("de-AT") : null;
+  const leistungBisFormatted = invoice.leistungsdatum_bis ? new Date(invoice.leistungsdatum_bis).toLocaleDateString("de-AT") : null;
   const gueltigBisFormatted = invoice.gueltig_bis ? new Date(invoice.gueltig_bis).toLocaleDateString("de-AT") : null;
 
   const bezahltBetrag = Number(invoice.bezahlt_betrag) || 0;
@@ -63,7 +64,15 @@ function buildHtml(invoice: any, items: any[], bank: { kontoinhaber: string; iba
   const metaParts: string[] = [];
   metaParts.push(`<div><span class="meta-label">${typLabel} Nr.</span><span class="meta-value">${invoice.nummer}</span></div>`);
   metaParts.push(`<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`);
-  if (!isAngebot && leistungFormatted) metaParts.push(`<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`);
+  if (!isAngebot) {
+    if (leistungFormatted && leistungBisFormatted) {
+      metaParts.push(`<div><span class="meta-label">Leistungszeitraum</span><span class="meta-value">${leistungFormatted} – ${leistungBisFormatted}</span></div>`);
+    } else if (leistungFormatted) {
+      metaParts.push(`<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`);
+    } else if (leistungBisFormatted) {
+      metaParts.push(`<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungBisFormatted}</span></div>`);
+    }
+  }
   if (!isAngebot && faelligFormatted) metaParts.push(`<div><span class="meta-label">Fällig am</span><span class="meta-value">${faelligFormatted}</span></div>`);
   if (gueltigBisFormatted) metaParts.push(`<div><span class="meta-label">Gültig bis</span><span class="meta-value">${gueltigBisFormatted}</span></div>`);
   if (!isAngebot && invoice.zahlungsbedingungen) metaParts.push(`<div><span class="meta-label">Zahlung</span><span class="meta-value">${invoice.zahlungsbedingungen}</span></div>`);
