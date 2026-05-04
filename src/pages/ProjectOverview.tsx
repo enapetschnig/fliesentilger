@@ -273,15 +273,25 @@ const ProjectOverview = () => {
         }
         
         const bucket = bucketMap[category.type];
-        const { data } = await supabase
-          .storage
-          .from(bucket)
-          .list(projectId);
 
-        return {
-          ...category,
-          count: data?.length || 0,
-        };
+        if (category.type === "photos") {
+          // Photos: Root-Dateien (Legacy) + alle Subfolder zählen
+          const [rootRes, allgRes, rechRes, liefRes] = await Promise.all([
+            supabase.storage.from(bucket).list(projectId),
+            supabase.storage.from(bucket).list(`${projectId}/allgemein`),
+            supabase.storage.from(bucket).list(`${projectId}/rechnungen`),
+            supabase.storage.from(bucket).list(`${projectId}/lieferscheine`),
+          ]);
+          const filterFiles = (data: any[] | null) =>
+            (data || []).filter(f => f.id !== null && f.name !== ".emptyFolderPlaceholder").length;
+          const total = filterFiles(rootRes.data) + filterFiles(allgRes.data) + filterFiles(rechRes.data) + filterFiles(liefRes.data);
+          return { ...category, count: total };
+        }
+
+        const { data } = await supabase.storage.from(bucket).list(projectId);
+        // Folder-Einträge ausfiltern (haben id === null)
+        const fileCount = (data || []).filter(f => f.id !== null && f.name !== ".emptyFolderPlaceholder").length;
+        return { ...category, count: fileCount };
       })
     );
 

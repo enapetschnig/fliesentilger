@@ -18,6 +18,9 @@ type StorageFile = {
   id: string;
   created_at: string;
   metadata: any;
+  // Optional: Voller Pfad falls die Datei in einem anderen Ordner liegt als der aktive Subfolder
+  // (z.B. Legacy-Root-Dateien beim "allgemein"-Tab)
+  fullPath?: string;
 };
 
 const bucketMap: Record<DocumentType, string> = {
@@ -99,7 +102,8 @@ const ProjectDetail = () => {
     const urls: Record<string, string> = {};
     const basePath = getStoragePath();
     for (const file of files) {
-      const filePath = `${basePath}/${file.name}`;
+      // Bei Legacy-Root-Dateien: file.fullPath zeigt direkt auf Root, sonst basePath verwenden
+      const filePath = file.fullPath || `${basePath}/${file.name}`;
       if (isPublic) {
         const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
         urls[file.name] = data.publicUrl;
@@ -132,10 +136,25 @@ const ProjectDetail = () => {
     const { data, error } = await supabase.storage.from(bucket).list(path, {
       sortBy: { column: "created_at", order: "desc" },
     });
+    let combined: StorageFile[] = [];
     if (!error && data) {
-      // Filter out subfolder placeholders (empty folders show as .emptyFolderPlaceholder)
-      setFiles(data.filter(f => f.name !== ".emptyFolderPlaceholder"));
+      combined = data
+        .filter(f => f.name !== ".emptyFolderPlaceholder" && f.id !== null)
+        .map(f => ({ ...f, fullPath: `${path}/${f.name}` }));
     }
+    // Bei Photos + "allgemein"-Tab: zusätzlich Legacy-Root-Dateien laden
+    if (isPhotos && activeSubfolder === "allgemein") {
+      const { data: rootData } = await supabase.storage.from(bucket).list(projectId!, {
+        sortBy: { column: "created_at", order: "desc" },
+      });
+      if (rootData) {
+        const rootFiles = rootData
+          .filter(f => f.id !== null && f.name !== ".emptyFolderPlaceholder")
+          .map(f => ({ ...f, fullPath: `${projectId}/${f.name}` } as StorageFile));
+        combined = [...rootFiles, ...combined];
+      }
+    }
+    setFiles(combined);
     setLoading(false);
   };
 
@@ -145,12 +164,12 @@ const ProjectDetail = () => {
     const counts: Record<string, number> = {};
     for (const sf of PHOTO_SUBFOLDERS) {
       const { data } = await supabase.storage.from(bucket).list(`${projectId}/${sf.key}`);
-      counts[sf.key] = (data || []).filter(f => f.name !== ".emptyFolderPlaceholder").length;
+      counts[sf.key] = (data || []).filter(f => f.name !== ".emptyFolderPlaceholder" && f.id !== null).length;
     }
-    // Also count root-level files (legacy, not in subfolder)
+    // Legacy-Root-Dateien werden in "allgemein" mitgezählt (sie werden auch dort angezeigt)
     const { data: rootData } = await supabase.storage.from(bucket).list(projectId!);
-    const rootFiles = (rootData || []).filter(f => !PHOTO_SUBFOLDERS.some(sf => sf.key === f.name) && f.name !== ".emptyFolderPlaceholder" && !f.id?.startsWith("folder"));
-    if (rootFiles.length > 0) counts["_root"] = rootFiles.length;
+    const rootFiles = (rootData || []).filter(f => f.id !== null && f.name !== ".emptyFolderPlaceholder");
+    counts["allgemein"] = (counts["allgemein"] || 0) + rootFiles.length;
     setSubfolderCounts(counts);
   };
 
@@ -180,7 +199,7 @@ const ProjectDetail = () => {
   const handleDelete = async (file: StorageFile) => {
     if (!projectId || !type || !confirm("Datei wirklich löschen?")) return;
     const bucket = bucketMap[type];
-    const filePath = `${getStoragePath()}/${file.name}`;
+    const filePath = file.fullPath || `${getStoragePath()}/${file.name}`;
     const { error } = await supabase.storage.from(bucket).remove([filePath]);
     if (error) {
       toast({ variant: "destructive", title: "Fehler", description: "Datei konnte nicht gelöscht werden" });
@@ -194,7 +213,7 @@ const ProjectDetail = () => {
   const handleMove = async (file: StorageFile, targetSubfolder: string) => {
     if (!projectId) return;
     const bucket = bucketMap["photos"];
-    const fromPath = `${getStoragePath()}/${file.name}`;
+    const fromPath = file.fullPath || `${getStoragePath()}/${file.name}`;
     const toPath = `${projectId}/${targetSubfolder}/${file.name}`;
 
     const { error } = await supabase.storage.from(bucket).move(fromPath, toPath);
@@ -209,7 +228,7 @@ const ProjectDetail = () => {
   };
 
   const handleFileOpen = (file: StorageFile) => {
-    const filePath = `${getStoragePath()}/${file.name}`;
+    const filePath = file.fullPath || `${getStoragePath()}/${file.name}`;
     setViewerState({ open: true, fileName: file.name, filePath });
   };
 
