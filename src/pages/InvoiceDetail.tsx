@@ -469,8 +469,8 @@ export default function InvoiceDetail() {
   const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
     setItems(prev => {
       const updated = [...prev];
-      // Prevent negative menge/einzelpreis
-      if ((field === "menge" || field === "einzelpreis") && Number(value) < 0) value = 0;
+      // Prevent negative menge (Einzelpreis darf negativ sein für Gutschriften/Abzüge)
+      if (field === "menge" && Number(value) < 0) value = 0;
       if (field === "rabatt_prozent") value = Math.max(0, Math.min(100, Number(value) || 0));
       (updated[index] as any)[field] = value;
       if (field === "menge" || field === "einzelpreis" || field === "rabatt_prozent") {
@@ -2035,7 +2035,7 @@ export default function InvoiceDetail() {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <Input type="number" value={item.einzelpreis} onChange={(e) => updateItem(idx, "einzelpreis", Number(e.target.value))} min={0} step={0.01} className="text-right" />
+                          <Input type="number" value={item.einzelpreis} onChange={(e) => updateItem(idx, "einzelpreis", Number(e.target.value))} step={0.01} className="text-right" />
                         </TableCell>
                         <TableCell>
                           <Input type="number" value={item.rabatt_prozent || ""} onChange={(e) => updateItem(idx, "rabatt_prozent", Number(e.target.value))} min={0} max={100} step={0.5} className="text-right" placeholder="0" />
