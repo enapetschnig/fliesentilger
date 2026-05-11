@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -516,21 +516,20 @@ export default function Invoices() {
     inv.status === "offen" &&
     isBefore(parseISO(inv.gueltig_bis), today);
 
-  const filtered = invoices.filter(i => {
+  const filtered = useMemo(() => invoices.filter(i => {
     const matchTyp = filterTyp === "alle" || i.typ === filterTyp;
     const matchMonth = selectedMonths.size === 0 || (i.datum && selectedMonths.has(i.datum.slice(0, 7)));
     if (filterStatus === "storniert") {
       return matchTyp && i.status === "storniert" && matchMonth;
     }
-    // Normal filters exclude storniert
     const matchStatus = filterStatus === "alle" ? i.status !== "storniert" : i.status === filterStatus;
     return matchTyp && matchStatus && matchMonth;
-  });
+  }), [invoices, filterTyp, filterStatus, selectedMonths]);
 
   // Verfügbare Monate aus allen Rechnungen (für Dropdown)
-  const availableMonths = Array.from(new Set(
+  const availableMonths = useMemo(() => Array.from(new Set(
     invoices.filter(i => i.typ === filterTyp || filterTyp === "alle").map(i => i.datum?.slice(0, 7)).filter(Boolean) as string[]
-  )).sort().reverse();
+  )).sort().reverse(), [invoices, filterTyp]);
 
   const formatMonth = (ym: string) => format(parseISO(ym + "-01"), "MMMM yyyy", { locale: de });
   const formatMonthShort = (ym: string) => format(parseISO(ym + "-01"), "MMM yyyy", { locale: de });
@@ -544,7 +543,7 @@ export default function Invoices() {
   };
 
   // Umsatz pro Monat (nur Rechnungen, nicht storniert/entwurf)
-  const monthlyRevenue: { month: string; total: number }[] = (() => {
+  const monthlyRevenue = useMemo<{ month: string; total: number }[]>(() => {
     const map = new Map<string, number>();
     invoices
       .filter(i => i.typ === "rechnung" && i.status !== "storniert" && i.status !== "entwurf" && i.datum)
@@ -555,19 +554,26 @@ export default function Invoices() {
     const arr = Array.from(map.entries()).map(([month, total]) => ({ month, total }));
     arr.sort((a, b) => b.month.localeCompare(a.month));
     return arr;
-  })();
+  }, [invoices]);
 
-  const visibleMonthlyRevenue = selectedMonths.size === 0
-    ? monthlyRevenue
-    : monthlyRevenue.filter(r => selectedMonths.has(r.month));
-  const monthlyMax = Math.max(1, ...visibleMonthlyRevenue.map(r => r.total));
-  const monthlyTotal = visibleMonthlyRevenue.reduce((s, r) => s + r.total, 0);
+  const visibleMonthlyRevenue = useMemo(() =>
+    selectedMonths.size === 0
+      ? monthlyRevenue
+      : monthlyRevenue.filter(r => selectedMonths.has(r.month)),
+    [monthlyRevenue, selectedMonths]
+  );
+  const monthlyMax = useMemo(() => Math.max(1, ...visibleMonthlyRevenue.map(r => r.total)), [visibleMonthlyRevenue]);
+  const monthlyTotal = useMemo(() => visibleMonthlyRevenue.reduce((s, r) => s + r.total, 0), [visibleMonthlyRevenue]);
 
   // Offene Forderungen (immer "jetzt", nicht vom Monatsfilter beeinflusst)
-  const offeneRechnungen = invoices.filter(i => i.typ === "rechnung" && (i.status === "offen" || i.status === "teilbezahlt"));
-  const offeneGesamt = offeneRechnungen.reduce((s, i) => s + (Number(i.brutto_summe) - Number(i.bezahlt_betrag)), 0);
-  const ueberfaelligListe = offeneRechnungen.filter(isOverdue);
-  const ueberfaelligGesamt = ueberfaelligListe.reduce((s, i) => s + (Number(i.brutto_summe) - Number(i.bezahlt_betrag)), 0);
+  const { offeneRechnungen, offeneGesamt, ueberfaelligListe, ueberfaelligGesamt } = useMemo(() => {
+    const offen = invoices.filter(i => i.typ === "rechnung" && (i.status === "offen" || i.status === "teilbezahlt"));
+    const offenGes = offen.reduce((s, i) => s + (Number(i.brutto_summe) - Number(i.bezahlt_betrag)), 0);
+    const ueber = offen.filter(isOverdue);
+    const ueberGes = ueber.reduce((s, i) => s + (Number(i.brutto_summe) - Number(i.bezahlt_betrag)), 0);
+    return { offeneRechnungen: offen, offeneGesamt: offenGes, ueberfaelligListe: ueber, ueberfaelligGesamt: ueberGes };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoices]);
 
   const storniertCount = invoices.filter(i => i.status === "storniert").length;
 
