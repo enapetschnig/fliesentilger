@@ -129,13 +129,37 @@ export default function MaterialWithdraw() {
   };
 
   const fetchProjectAggregate = async (projectId: string) => {
-    // Alle material_entries für dieses Projekt (egal welcher Lieferschein)
-    const { data: entries } = await supabase
+    // Material-Entries für dieses Projekt: direkt per project_id ODER
+    // indirekt über Lieferscheine die zum Projekt gehören.
+    // (Historisch werden Entries oft nur per lieferschein_id verknüpft.)
+    const { data: lsIdsData } = await supabase
+      .from("lieferscheine")
+      .select("id")
+      .eq("project_id", projectId);
+    const lsIds = (lsIdsData || []).map((l: any) => l.id);
+
+    const directEntriesPromise = supabase
       .from("material_entries")
-      .select("material, einheit, menge, typ")
+      .select("id, material, einheit, menge, typ")
       .eq("project_id", projectId);
 
-    setProjectEntries((entries || []).map((e: any) => ({
+    const lsEntriesPromise = lsIds.length > 0
+      ? supabase
+          .from("material_entries")
+          .select("id, material, einheit, menge, typ")
+          .in("lieferschein_id", lsIds)
+      : Promise.resolve({ data: [] as any[] });
+
+    const [{ data: direct }, { data: viaLs }] = await Promise.all([directEntriesPromise, lsEntriesPromise]);
+
+    // Dedupe per ID (Eintrag kann theoretisch über beide Wege geladen werden)
+    const byId = new Map<string, any>();
+    [...(direct || []), ...(viaLs || [])].forEach((e: any) => {
+      if (!byId.has(e.id)) byId.set(e.id, e);
+    });
+    const merged = Array.from(byId.values());
+
+    setProjectEntries(merged.map((e: any) => ({
       material: e.material,
       einheit: e.einheit || "Stk.",
       menge: parseFloat(e.menge || "0") || 0,
