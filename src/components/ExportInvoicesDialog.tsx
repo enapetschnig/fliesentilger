@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, CalendarRange } from "lucide-react";
 // JSZip loaded dynamically in handleExport
 
 interface ExportInvoicesDialogProps {
@@ -26,9 +27,17 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
   const currentMonth = new Date().getMonth() + 1;
 
   const [year, setYear] = useState(currentYear.toString());
-  const [month, setMonth] = useState(currentMonth.toString());
+  const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set([currentMonth]));
   const [includeStorno, setIncludeStorno] = useState(false);
   const [exportAll, setExportAll] = useState(false);
+
+  const toggleMonth = (m: number) => {
+    setSelectedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  };
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState("");
   const [previewCount, setPreviewCount] = useState<number | null>(null);
@@ -41,13 +50,17 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
       .eq("jahr", parseInt(year))
       .neq("status", "entwurf")
       .gt("brutto_summe", 0);
-    if (!exportAll) {
-      const monthNum = parseInt(month);
-      const startDate = `${year}-${String(monthNum).padStart(2, "0")}-01`;
-      const endMonth = monthNum === 12 ? 1 : monthNum + 1;
-      const endYear = monthNum === 12 ? parseInt(year) + 1 : parseInt(year);
-      const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
-      q = q.gte("datum", startDate).lt("datum", endDate);
+    if (!exportAll && selectedMonths.size > 0) {
+      // Multi-Month: OR über alle gewählten Monate
+      const yr = parseInt(year);
+      const ranges = Array.from(selectedMonths).map(m => {
+        const startDate = `${year}-${String(m).padStart(2, "0")}-01`;
+        const endMonth = m === 12 ? 1 : m + 1;
+        const endYear = m === 12 ? yr + 1 : yr;
+        const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+        return `and(datum.gte.${startDate},datum.lt.${endDate})`;
+      });
+      q = q.or(ranges.join(","));
     }
     if (!includeStorno) q = q.neq("status", "storniert");
     return q;
@@ -66,7 +79,7 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
       }
     })();
     return () => { cancelled = true; };
-  }, [open, year, month, exportAll, includeStorno]);
+  }, [open, year, selectedMonths, exportAll, includeStorno]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -182,7 +195,14 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
       const zipBlob = await zip.generateAsync({ type: "blob" });
 
       // Download
-      const monthLabel = exportAll ? "Gesamt" : MONTHS[parseInt(month) - 1];
+      const sortedMonths = Array.from(selectedMonths).sort((a, b) => a - b);
+      const monthLabel = exportAll
+        ? "Gesamt"
+        : sortedMonths.length === 1
+          ? MONTHS[sortedMonths[0] - 1]
+          : sortedMonths.length === 12
+            ? "Alle"
+            : sortedMonths.map(m => MONTHS[m - 1].slice(0, 3)).join("-");
       const zipName = `Rechnungen_${year}_${monthLabel}${includeStorno ? "_inkl_Storno" : ""}.zip`;
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
@@ -231,15 +251,53 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
               </Select>
             </div>
             <div>
-              <Label>Monat</Label>
-              <Select value={month} onValueChange={setMonth} disabled={exportAll}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((m, idx) => (
-                    <SelectItem key={idx} value={(idx + 1).toString()}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Monate</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={exportAll} className="w-full justify-start gap-2 font-normal">
+                    <CalendarRange className="h-4 w-4" />
+                    {exportAll
+                      ? "—"
+                      : selectedMonths.size === 0
+                        ? "Keine"
+                        : selectedMonths.size === 1
+                          ? MONTHS[Array.from(selectedMonths)[0] - 1]
+                          : selectedMonths.size === 12
+                            ? "Alle Monate"
+                            : `${selectedMonths.size} Monate`}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[200px] max-h-72 overflow-y-auto">
+                  <DropdownMenuLabel>Monate auswählen</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {MONTHS.map((m, idx) => {
+                    const monthNum = idx + 1;
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={monthNum}
+                        checked={selectedMonths.has(monthNum)}
+                        onCheckedChange={() => toggleMonth(monthNum)}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {m}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <button
+                    className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted rounded-sm"
+                    onClick={() => setSelectedMonths(new Set([1,2,3,4,5,6,7,8,9,10,11,12]))}
+                  >
+                    Alle auswählen
+                  </button>
+                  <button
+                    className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted rounded-sm"
+                    onClick={() => setSelectedMonths(new Set())}
+                  >
+                    Auswahl löschen
+                  </button>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
