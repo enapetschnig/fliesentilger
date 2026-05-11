@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { FileText, Receipt, AlertTriangle, Download, Archive, ArchiveRestore, Trash2, FileDown, Printer, Settings } from "lucide-react";
+import { FileText, Receipt, AlertTriangle, Download, Archive, ArchiveRestore, Trash2, FileDown, Printer, Settings, CalendarRange, X, TrendingUp } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, parseISO, isBefore } from "date-fns";
@@ -72,6 +73,7 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true);
   const [filterTyp, setFilterTyp] = useState<string>("rechnung");
   const [filterStatus, setFilterStatus] = useState<string>("alle");
+  const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
   const [showArchive, setShowArchive] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportMonth, setExportMonth] = useState<string>(format(new Date(), "yyyy-MM"));
@@ -138,7 +140,7 @@ export default function Invoices() {
     const { data, error } = await supabase
       .from("invoices")
       .select("id, typ, nummer, laufnummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag, archiviert, storno_nummer, storno_datum, kundennummer, zahlungsbedingungen")
-      .order("datum", { ascending: false })
+      .order("laufnummer", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -516,24 +518,58 @@ export default function Invoices() {
 
   const filtered = invoices.filter(i => {
     const matchTyp = filterTyp === "alle" || i.typ === filterTyp;
+    const matchMonth = selectedMonths.size === 0 || (i.datum && selectedMonths.has(i.datum.slice(0, 7)));
     if (filterStatus === "storniert") {
-      return matchTyp && i.status === "storniert";
+      return matchTyp && i.status === "storniert" && matchMonth;
     }
     // Normal filters exclude storniert
     const matchStatus = filterStatus === "alle" ? i.status !== "storniert" : i.status === filterStatus;
-    return matchTyp && matchStatus;
+    return matchTyp && matchStatus && matchMonth;
   });
 
-  const storniertCount = invoices.filter(i => i.status === "storniert").length;
+  // Verfügbare Monate aus allen Rechnungen (für Dropdown)
+  const availableMonths = Array.from(new Set(
+    invoices.filter(i => i.typ === filterTyp || filterTyp === "alle").map(i => i.datum?.slice(0, 7)).filter(Boolean) as string[]
+  )).sort().reverse();
 
-  const totalRechnungen = invoices.filter(i => i.typ === "rechnung").length;
-  const totalAngebote = invoices.filter(i => i.typ === "angebot").length;
-  const offeneSumme = invoices
-    .filter(i => i.typ === "rechnung" && (i.status === "offen" || i.status === "teilbezahlt"))
-    .reduce((sum, i) => sum + Number(i.brutto_summe) - i.bezahlt_betrag, 0);
-  const bezahlteSumme = invoices
-    .filter(i => i.typ === "rechnung" && (i.status === "bezahlt" || i.status === "teilbezahlt"))
-    .reduce((sum, i) => sum + i.bezahlt_betrag, 0);
+  const formatMonth = (ym: string) => format(parseISO(ym + "-01"), "MMMM yyyy", { locale: de });
+  const formatMonthShort = (ym: string) => format(parseISO(ym + "-01"), "MMM yyyy", { locale: de });
+
+  const toggleMonth = (ym: string) => {
+    setSelectedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(ym)) next.delete(ym); else next.add(ym);
+      return next;
+    });
+  };
+
+  // Umsatz pro Monat (nur Rechnungen, nicht storniert/entwurf)
+  const monthlyRevenue: { month: string; total: number }[] = (() => {
+    const map = new Map<string, number>();
+    invoices
+      .filter(i => i.typ === "rechnung" && i.status !== "storniert" && i.status !== "entwurf" && i.datum)
+      .forEach(i => {
+        const m = i.datum.slice(0, 7);
+        map.set(m, (map.get(m) || 0) + Number(i.brutto_summe));
+      });
+    const arr = Array.from(map.entries()).map(([month, total]) => ({ month, total }));
+    arr.sort((a, b) => b.month.localeCompare(a.month));
+    return arr;
+  })();
+
+  const visibleMonthlyRevenue = selectedMonths.size === 0
+    ? monthlyRevenue
+    : monthlyRevenue.filter(r => selectedMonths.has(r.month));
+  const monthlyMax = Math.max(1, ...visibleMonthlyRevenue.map(r => r.total));
+  const monthlyTotal = visibleMonthlyRevenue.reduce((s, r) => s + r.total, 0);
+
+  // Offene Forderungen (immer "jetzt", nicht vom Monatsfilter beeinflusst)
+  const offeneRechnungen = invoices.filter(i => i.typ === "rechnung" && (i.status === "offen" || i.status === "teilbezahlt"));
+  const offeneGesamt = offeneRechnungen.reduce((s, i) => s + (Number(i.brutto_summe) - Number(i.bezahlt_betrag)), 0);
+  const ueberfaelligListe = offeneRechnungen.filter(isOverdue);
+  const ueberfaelligGesamt = ueberfaelligListe.reduce((s, i) => s + (Number(i.brutto_summe) - Number(i.bezahlt_betrag)), 0);
+
+  const storniertCount = invoices.filter(i => i.status === "storniert").length;
 
   // Status options for the filter depend on selected typ
   const statusFilterOptions = filterTyp === "rechnung"
@@ -547,30 +583,63 @@ export default function Invoices() {
       <div className="container mx-auto px-4 py-8 max-w-[1600px]">
         <PageHeader title="Rechnungen & Angebote" backPath="/" />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Rechnungen</CardDescription>
-              <CardTitle className="text-2xl">{totalRechnungen}</CardTitle>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Offene Forderungen */}
+          <Card className={ueberfaelligGesamt > 0 ? "border-red-200" : ""}>
+            <CardHeader className="pb-3">
+              <CardDescription className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Offene Forderungen
+              </CardDescription>
+              <CardTitle className="text-3xl">€ {offeneGesamt.toLocaleString("de-AT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardTitle>
             </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-sm text-muted-foreground">
+                {offeneRechnungen.length} {offeneRechnungen.length === 1 ? "Rechnung" : "Rechnungen"} offen
+              </div>
+              {ueberfaelligGesamt > 0 && (
+                <div className="text-sm text-red-600 font-medium mt-1 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  € {ueberfaelligGesamt.toLocaleString("de-AT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} überfällig ({ueberfaelligListe.length})
+                </div>
+              )}
+            </CardContent>
           </Card>
+
+          {/* Umsatz pro Monat */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Angebote</CardDescription>
-              <CardTitle className="text-2xl">{totalAngebote}</CardTitle>
+            <CardHeader className="pb-3">
+              <CardDescription className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Umsatz pro Monat {selectedMonths.size > 0 && <Badge variant="secondary" className="ml-1 text-xs">gefiltert</Badge>}
+              </CardDescription>
+              <CardTitle className="text-2xl">€ {monthlyTotal.toLocaleString("de-AT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardTitle>
             </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Offene Rechnungen</CardDescription>
-              <CardTitle className="text-2xl">€ {offeneSumme.toFixed(2)}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Bezahlt</CardDescription>
-              <CardTitle className="text-2xl text-green-600">€ {bezahlteSumme.toFixed(2)}</CardTitle>
-            </CardHeader>
+            <CardContent className="pt-0">
+              {visibleMonthlyRevenue.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Keine Daten</p>
+              ) : (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {visibleMonthlyRevenue.map(r => {
+                    const isActive = selectedMonths.has(r.month);
+                    return (
+                      <button
+                        key={r.month}
+                        onClick={() => toggleMonth(r.month)}
+                        className={`w-full text-left grid grid-cols-[6rem_1fr_auto] items-center gap-2 px-2 py-1 rounded hover:bg-muted/50 transition-colors ${isActive ? "bg-primary/10" : ""}`}
+                        title="Klicken um zu filtern"
+                      >
+                        <span className="text-xs text-muted-foreground capitalize">{formatMonthShort(r.month)}</span>
+                        <div className="h-2 rounded-sm bg-muted overflow-hidden">
+                          <div className="h-full bg-primary rounded-sm" style={{ width: `${(r.total / monthlyMax) * 100}%` }} />
+                        </div>
+                        <span className="text-xs font-mono tabular-nums">€ {r.total.toLocaleString("de-AT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
           </Card>
         </div>
 
@@ -593,6 +662,62 @@ export default function Invoices() {
                     Angebote
                   </button>
                 </div>
+
+                {/* Monats-Multiselect */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 h-9">
+                      <CalendarRange className="h-4 w-4" />
+                      {selectedMonths.size === 0
+                        ? "Monat"
+                        : selectedMonths.size === 1
+                          ? formatMonth(Array.from(selectedMonths)[0])
+                          : `${selectedMonths.size} Monate`}
+                      {selectedMonths.size > 0 && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Zurücksetzen"
+                          className="ml-1 inline-flex"
+                          onClick={(e) => { e.stopPropagation(); setSelectedMonths(new Set()); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setSelectedMonths(new Set()); } }}
+                        >
+                          <X className="h-3.5 w-3.5 opacity-60 hover:opacity-100" />
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                    <DropdownMenuLabel>Monate filtern</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {availableMonths.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">Keine Daten</div>
+                    ) : (
+                      availableMonths.map(ym => (
+                        <DropdownMenuCheckboxItem
+                          key={ym}
+                          checked={selectedMonths.has(ym)}
+                          onCheckedChange={() => toggleMonth(ym)}
+                          className="capitalize"
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          {formatMonth(ym)}
+                        </DropdownMenuCheckboxItem>
+                      ))
+                    )}
+                    {selectedMonths.size > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <button
+                          className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted rounded-sm"
+                          onClick={() => setSelectedMonths(new Set())}
+                        >
+                          Auswahl zurücksetzen
+                        </button>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Status-Filter — passt sich dem Typ an */}
                 <Select value={filterStatus} onValueChange={setFilterStatus}>

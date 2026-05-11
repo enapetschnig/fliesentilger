@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Trash2, Package, Plus, FileText, ArrowRight, Info } from "lucide-react";
+import { Trash2, Package, Plus, FileText, ArrowRight, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,9 @@ export default function MaterialWithdraw() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  // Projekt-Konsolidierung: alle Material-Entries + Angebot-Positionen für dieses Projekt
+  const [projectEntries, setProjectEntries] = useState<{ material: string; einheit: string; menge: number; typ: string }[]>([]);
+  const [projectAngebot, setProjectAngebot] = useState<{ beschreibung: string; menge: number; einheit: string }[]>([]);
 
   // Form
   const [showForm, setShowForm] = useState(false);
@@ -117,6 +121,51 @@ export default function MaterialWithdraw() {
         materialCount: stats.materials.size,
       };
     }));
+
+    // Im Projekt-Modus: Aggregat über alle Materialien dieses Projekts laden
+    if (filterProjectId) {
+      await fetchProjectAggregate(filterProjectId);
+    }
+  };
+
+  const fetchProjectAggregate = async (projectId: string) => {
+    // Alle material_entries für dieses Projekt (egal welcher Lieferschein)
+    const { data: entries } = await supabase
+      .from("material_entries")
+      .select("material, einheit, menge, typ")
+      .eq("project_id", projectId);
+
+    setProjectEntries((entries || []).map((e: any) => ({
+      material: e.material,
+      einheit: e.einheit || "Stk.",
+      menge: parseFloat(e.menge || "0") || 0,
+      typ: e.typ,
+    })));
+
+    // Neuestes nicht-storniertes Angebot dieses Projekts
+    const { data: angebote } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("typ", "angebot")
+      .not("status", "eq", "storniert")
+      .order("datum", { ascending: false })
+      .limit(1);
+
+    if (angebote && angebote.length > 0) {
+      const { data: items } = await supabase
+        .from("invoice_items")
+        .select("position, beschreibung, kurztext, menge, einheit")
+        .eq("invoice_id", angebote[0].id)
+        .order("position");
+      setProjectAngebot((items || []).map((i: any) => ({
+        beschreibung: i.kurztext || i.beschreibung,
+        menge: Number(i.menge) || 0,
+        einheit: i.einheit || "Stk.",
+      })));
+    } else {
+      setProjectAngebot([]);
+    }
   };
 
   const canCreate = newProjectId !== "none" || newName.trim().length > 0;
@@ -171,11 +220,47 @@ export default function MaterialWithdraw() {
     return <div className="min-h-screen flex items-center justify-center"><p>Lädt...</p></div>;
   }
 
+  // Konsolidierte Material-Übersicht für das Projekt (nur im Projekt-Modus)
+  type MaterialRow = { material: string; einheit: string; soll: number; entnommen: number; zurueck: number; verbraucht: number; inAngebot: boolean };
+  const materialAggregat: MaterialRow[] = (() => {
+    if (!filterProjectId) return [];
+    const map = new Map<string, MaterialRow>();
+    // Aus Angebot: soll-Mengen
+    projectAngebot.forEach(p => {
+      const key = p.beschreibung.toLowerCase().trim();
+      if (!key) return;
+      map.set(key, { material: p.beschreibung, einheit: p.einheit, soll: p.menge, entnommen: 0, zurueck: 0, verbraucht: 0, inAngebot: true });
+    });
+    // Aus material_entries: entnommen/zurück aufsummieren
+    projectEntries.forEach(e => {
+      const key = e.material.toLowerCase().trim();
+      if (!key) return;
+      if (!map.has(key)) {
+        map.set(key, { material: e.material, einheit: e.einheit, soll: 0, entnommen: 0, zurueck: 0, verbraucht: 0, inAngebot: false });
+      }
+      const row = map.get(key)!;
+      if (e.typ === "entnahme") row.entnommen += e.menge;
+      else if (e.typ === "rueckgabe") row.zurueck += e.menge;
+      row.verbraucht = row.entnommen - row.zurueck;
+    });
+    return Array.from(map.values()).sort((a, b) => {
+      // Angebots-Positionen zuerst, dann extras
+      if (a.inAngebot !== b.inAngebot) return a.inAngebot ? -1 : 1;
+      return a.material.localeCompare(b.material);
+    });
+  })();
+
+  const aggregatTotalEntnommen = materialAggregat.reduce((s, r) => s + r.entnommen, 0);
+  const aggregatTotalZurueck = materialAggregat.reduce((s, r) => s + r.zurueck, 0);
+
+  const fmt = (n: number) => n.toLocaleString("de-AT", { maximumFractionDigits: 2 });
+  const projektName = filterProjectId ? projects.find(p => p.id === filterProjectId)?.name : null;
+
   return (
     <div className="min-h-screen bg-background">
       <PageHeader title={filterProjectId ? `Lieferscheine — ${projects.find(p => p.id === filterProjectId)?.name || "Projekt"}` : "Material / Lieferscheine"} backPath={filterProjectId ? `/projects/${filterProjectId}` : "/"} />
 
-      <main className="container mx-auto px-4 py-6 max-w-3xl space-y-4">
+      <main className={`container mx-auto px-4 py-6 space-y-4 ${filterProjectId ? "max-w-5xl" : "max-w-3xl"}`}>
         {!showForm ? (
           <Button onClick={() => setShowForm(true)} className="gap-2 bg-orange-600 hover:bg-orange-700">
             <Plus className="h-4 w-4" />
@@ -224,13 +309,89 @@ export default function MaterialWithdraw() {
           </Card>
         )}
 
+        {/* Projekt-Modus: konsolidierte Material-Übersicht oben */}
+        {filterProjectId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Material-Gesamtübersicht
+              </CardTitle>
+              <CardDescription>
+                {projektName ? `${projektName} · ` : ""}
+                {lieferscheine.length} {lieferscheine.length === 1 ? "Lieferschein" : "Lieferscheine"} ·
+                {" "}{materialAggregat.length} {materialAggregat.length === 1 ? "Material" : "Materialien"}
+                {aggregatTotalEntnommen > 0 && ` · ${fmt(aggregatTotalEntnommen)} entnommen, ${fmt(aggregatTotalZurueck)} zurück`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {materialAggregat.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">
+                  Noch keine Materialien für dieses Projekt verbucht.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Material</TableHead>
+                        <TableHead className="text-right">Soll</TableHead>
+                        <TableHead className="text-right">Entnommen</TableHead>
+                        <TableHead className="text-right">Zurück</TableHead>
+                        <TableHead className="text-right">Verbraucht</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {materialAggregat.map((row, idx) => {
+                        const isExtra = !row.inAngebot;
+                        const isComplete = row.inAngebot && row.soll > 0 && Math.abs(row.verbraucht - row.soll) < 0.01;
+                        const isOver = row.inAngebot && row.soll > 0 && row.verbraucht > row.soll + 0.01;
+                        const isPartial = row.inAngebot && row.soll > 0 && row.verbraucht > 0 && row.verbraucht < row.soll - 0.01;
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">{row.material}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">{row.inAngebot ? `${fmt(row.soll)} ${row.einheit}` : "—"}</TableCell>
+                            <TableCell className="text-right">{fmt(row.entnommen)} {row.einheit}</TableCell>
+                            <TableCell className="text-right text-green-700">{fmt(row.zurueck)} {row.einheit}</TableCell>
+                            <TableCell className={`text-right font-medium ${isOver ? "text-red-600" : ""}`}>{fmt(row.verbraucht)} {row.einheit}</TableCell>
+                            <TableCell>
+                              {isExtra && <Badge variant="outline" className="text-xs">Extra</Badge>}
+                              {isComplete && (
+                                <Badge variant="outline" className="text-xs text-green-700 border-green-200 gap-1">
+                                  <CheckCircle2 className="h-3 w-3" /> Vollständig
+                                </Badge>
+                              )}
+                              {isOver && (
+                                <Badge variant="outline" className="text-xs text-red-600 border-red-200 gap-1">
+                                  <AlertTriangle className="h-3 w-3" /> Übermäßig
+                                </Badge>
+                              )}
+                              {isPartial && <Badge variant="outline" className="text-xs text-muted-foreground">Teilweise</Badge>}
+                              {row.inAngebot && row.verbraucht <= 0.01 && <Badge variant="outline" className="text-xs text-muted-foreground">Offen</Badge>}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Lieferscheine
+              <FileText className="h-5 w-5" />
+              {filterProjectId ? "Einzelne Lieferscheine" : "Lieferscheine"}
             </CardTitle>
-            <CardDescription>{lieferscheine.length} Lieferscheine</CardDescription>
+            <CardDescription>
+              {filterProjectId
+                ? "Klick öffnet den jeweiligen Lieferschein"
+                : `${lieferscheine.length} Lieferscheine`}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {lieferscheine.length === 0 ? (
@@ -244,19 +405,19 @@ export default function MaterialWithdraw() {
                 {lieferscheine.map((ls) => (
                   <div
                     key={ls.id}
-                    className="p-4 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer flex items-center justify-between gap-3 transition-colors"
+                    className={`rounded-lg border bg-card hover:bg-muted/50 cursor-pointer flex items-center justify-between gap-3 transition-colors ${filterProjectId ? "p-2.5" : "p-4"}`}
                     onClick={() => navigate(`/material/${ls.id}`)}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">
+                        <p className={filterProjectId ? "text-sm font-medium" : "font-medium"}>
                           {ls.name || "Lieferschein"}
                         </p>
-                        {ls.projects ? (
+                        {!filterProjectId && (ls.projects ? (
                           <Badge variant="secondary" className="text-xs">{(ls.projects as any).name}</Badge>
                         ) : (
                           <Badge variant="outline" className="text-xs text-muted-foreground">Kein Projekt</Badge>
-                        )}
+                        ))}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
                         <span>{ls.datum ? new Date(ls.datum).toLocaleDateString("de-AT") : ""}</span>
