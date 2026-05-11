@@ -661,7 +661,10 @@ export default function InvoiceDetail() {
         assignedLaufnummer = parseInt(assignedNummer.replace(/\D/g, "").slice(-3)) || 1;
       }
 
-      if (isNew || !savedId) {
+      // Nur INSERT wenn noch keine ID existiert. `isNew` allein reicht NICHT —
+      // nach erstem Save (via Vorschau replaceState) bleibt isNew true,
+      // savedId ist aber gesetzt → muss UPDATE machen, sonst Duplikat.
+      if (!savedId) {
         const { data: insertData, error: insertError } = await supabase
           .from("invoices")
           .insert({
