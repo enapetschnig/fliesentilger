@@ -1728,7 +1728,20 @@ export default function InvoiceDetail() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label>Datum</Label>
-                  <Input type="date" value={form.datum} onChange={(e) => updateField("datum", e.target.value)} />
+                  <Input type="date" value={form.datum} onChange={(e) => {
+                    const newDatum = e.target.value;
+                    setForm(prev => {
+                      const zb = (prev.zahlungsbedingungen || "14 Tage").toLowerCase();
+                      const tage = zb.includes("sofort") ? 0 : parseInt(zb.match(/(\d+)/)?.[1] || "14");
+                      let faellig = prev.faellig_am;
+                      if (newDatum && prev.typ === "rechnung") {
+                        const due = new Date(newDatum + "T12:00:00");
+                        due.setDate(due.getDate() + tage);
+                        faellig = format(due, "yyyy-MM-dd");
+                      }
+                      return { ...prev, datum: newDatum, faellig_am: faellig };
+                    });
+                  }} />
                 </div>
                 {form.typ === "rechnung" && (
                   <div>
@@ -1750,7 +1763,15 @@ export default function InvoiceDetail() {
                 {form.typ === "rechnung" && (
                   <div>
                     <Label>Fällig am</Label>
-                    <Input type="date" value={form.faellig_am} onChange={(e) => updateField("faellig_am", e.target.value)} />
+                    <Input
+                      type="date"
+                      value={form.faellig_am}
+                      readOnly
+                      disabled
+                      className="bg-muted cursor-not-allowed"
+                      title="Wird automatisch aus Datum + Zahlungsfrist berechnet"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Berechnet aus Datum + Zahlungsfrist</p>
                   </div>
                 )}
                 {form.typ === "angebot" && (
