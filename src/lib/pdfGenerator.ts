@@ -318,52 +318,11 @@ export async function generateInvoicePdf(
   y = (pdf as any).lastAutoTable.finalY;
 
   // Check: does the entire closing section (totals + notes + closing text etc.) fit?
-  // If not → new page with the last position repeated so it's not empty.
+  // If not → new page (Re-Draw der letzten Position entfernt — verursachte Duplikat)
   const spaceLeft = (pageHeight - 22) - y; // 22mm = page footer
   if (spaceLeft < closingH) {
     pdf.addPage();
     y = 20;
-    // Redraw the last position on the new page so it's not empty
-    if (tableBody.length > 0) {
-      const lastRow = [tableBody[tableBody.length - 1]];
-      autoTable(pdf, {
-        startY: y,
-        head: tableHead,
-        body: lastRow,
-        theme: "plain",
-        rowPageBreak: "avoid",
-        margin: { left: ml, right: mr, bottom: 32 },
-        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold", fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, lineWidth: { bottom: 0.5 }, lineColor: [0, 0, 0] },
-        bodyStyles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, textColor: [0, 0, 0], lineWidth: { bottom: 0.2 }, lineColor: [180, 180, 180] },
-        columnStyles: { 0: { halign: "center", cellWidth: 12 }, 1: { halign: "right", cellWidth: 18 }, 2: { halign: "center", cellWidth: 18 }, 3: { halign: "left" }, 4: { halign: "right", cellWidth: 24 }, 5: { halign: "right", cellWidth: 26, fontStyle: "bold" } },
-        didDrawCell: (data: any) => {
-          if (data.section === "body" && data.column.index === 3) {
-            const lastIdx = items.length - 1;
-            const info = langtextInfo[lastIdx];
-            if (info) {
-              try {
-                const cw = data.cell.width - 4, cx = data.cell.x + 2;
-                const kl = pdf.splitTextToSize(info.kurztext, cw);
-                const kh = kl.length * (9 * 0.3528 * 1.15);
-                const cy = data.cell.y + 3 + kh + 0.5;
-                const ch = data.cell.y + data.cell.height - cy;
-                pdf.setFillColor(255, 255, 255);
-                pdf.rect(data.cell.x, cy, data.cell.width, ch, "F");
-                const ly = data.cell.y + 3 + kh + 2;
-                const ll = pdf.splitTextToSize(info.langtext, cw);
-                pdf.setFont("helvetica", "italic"); pdf.setFontSize(7.5); pdf.setTextColor(120, 120, 120);
-                pdf.text(ll, cx, ly);
-                const by = data.cell.y + data.cell.height;
-                pdf.setDrawColor(180, 180, 180); pdf.setLineWidth(0.2);
-                pdf.line(data.cell.x, by, data.cell.x + data.cell.width, by);
-                pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.setTextColor(0, 0, 0);
-              } catch {}
-            }
-          }
-        },
-      });
-      y = (pdf as any).lastAutoTable.finalY;
-    }
   }
 
   // ======= TOTALS (manually drawn, not in autoTable) =======
