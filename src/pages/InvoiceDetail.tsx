@@ -853,40 +853,89 @@ export default function InvoiceDetail() {
     toast({ title: "Zahlung gelöscht" });
   };
 
+  // Gemeinsame PDF-Erzeugung — gleiche Logik wie in der Vorschau und der Liste
+  // (jsPDF via /lib/pdfGenerator), damit alle drei Stellen IDENTISCHE PDFs liefern.
+  const buildInvoicePdfBlob = async (): Promise<Blob> => {
+    const [{ data: inv }, { data: invItems }, { data: bankSettings }] = await Promise.all([
+      supabase.from("invoices").select("*").eq("id", invoiceId!).single(),
+      supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId!).order("position"),
+      supabase.from("app_settings").select("key, value").in("key", ["bank_kontoinhaber", "bank_iban", "bank_bic", "firmen_uid"]),
+    ]);
+    if (!inv) throw new Error("Rechnung nicht gefunden");
+
+    const bank = { kontoinhaber: "Gottfried Tilger", iban: "AT61 2081 5000 0423 1474", bic: "STSPAT2GXXX" };
+    let firmenUid = "";
+    bankSettings?.forEach((s: any) => {
+      if (s.key === "bank_kontoinhaber") bank.kontoinhaber = s.value;
+      if (s.key === "bank_iban") bank.iban = s.value;
+      if (s.key === "bank_bic") bank.bic = s.value;
+      if (s.key === "firmen_uid") firmenUid = s.value;
+    });
+
+    let logoUri: string | undefined;
+    try {
+      const resp = await fetch("/logo-tilger.png");
+      const blob = await resp.blob();
+      logoUri = await new Promise<string>((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.readAsDataURL(blob);
+      });
+    } catch {}
+
+    const { generateEpcQrCode } = await import("@/lib/invoiceHtml");
+    let qrUri: string | undefined;
+    if (inv.typ === "rechnung" && Number(inv.brutto_summe) > 0) {
+      try { qrUri = await generateEpcQrCode(Number(inv.brutto_summe), inv.nummer || "", bank); } catch {}
+    }
+
+    const { generateInvoicePdf } = await import("@/lib/pdfGenerator");
+    return generateInvoicePdf(
+      {
+        typ: inv.typ, nummer: inv.nummer, status: inv.status,
+        kunde_name: inv.kunde_name, kunde_adresse: inv.kunde_adresse,
+        kunde_plz: inv.kunde_plz, kunde_ort: inv.kunde_ort,
+        kunde_land: inv.kunde_land, kunde_email: inv.kunde_email,
+        kunde_telefon: inv.kunde_telefon, kunde_uid: inv.kunde_uid,
+        kunde_anrede: inv.kunde_anrede || "", kunde_titel: inv.kunde_titel || "",
+        reverse_charge: inv.reverse_charge || false,
+        datum: inv.datum, faellig_am: inv.faellig_am,
+        leistungsdatum: inv.leistungsdatum, leistungsdatum_bis: (inv as any).leistungsdatum_bis,
+        gueltig_bis: inv.gueltig_bis,
+        zahlungsbedingungen: inv.zahlungsbedingungen, notizen: inv.notizen,
+        betreff: (inv as any).betreff,
+        netto_summe: Number(inv.netto_summe), mwst_satz: Number(inv.mwst_satz),
+        mwst_betrag: Number(inv.mwst_betrag), brutto_summe: Number(inv.brutto_summe),
+        bezahlt_betrag: Number(inv.bezahlt_betrag), rabatt_prozent: Number(inv.rabatt_prozent),
+        rabatt_betrag: Number(inv.rabatt_betrag), mahnstufe: Number(inv.mahnstufe),
+        skonto_prozent: Number(inv.skonto_prozent || 0), skonto_tage: Number(inv.skonto_tage || 0),
+        kundennummer: (inv as any).kundennummer,
+      } as any,
+      (invItems || []).map((it: any) => ({
+        position: it.position, beschreibung: it.beschreibung,
+        kurztext: it.kurztext || it.beschreibung, langtext: it.langtext || "",
+        menge: Number(it.menge), einheit: it.einheit || "Stk.",
+        einzelpreis: Number(it.einzelpreis), gesamtpreis: Number(it.gesamtpreis),
+      })),
+      bank, logoUri, qrUri, firmenUid
+    );
+  };
+
   const handleDownloadPdf = async () => {
     if (!invoiceId) {
       toast({ variant: "destructive", title: "Fehler", description: "Bitte zuerst speichern" });
       return;
     }
-
     try {
-      const { data, error } = await supabase.functions.invoke("generate-invoice-pdf", {
-        body: { invoiceId },
-      });
-
-      if (error) throw error;
-
-      const html = decodeURIComponent(escape(atob(data.pdf)));
-
-      // Archive the HTML
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const fileName = `${form.nummer || "Entwurf"}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.html`;
-        const blob = new Blob([html], { type: "text/html" });
-        await supabase.storage
-          .from("invoice-pdfs")
-          .upload(`${user.id}/${invoiceId}/${fileName}`, blob, { upsert: false });
-        loadStoredPdfs(invoiceId);
-      }
-
-      // Open in new tab for PDF download via print dialog
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-      }
-
-      toast({ title: "PDF geöffnet", description: "Nutze 'Als PDF speichern' im Druckdialog" });
+      const pdfBlob = await buildInvoicePdfBlob();
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${form.nummer || "Entwurf"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("PDF-Fehler:", err);
       toast({ variant: "destructive", title: "PDF-Fehler", description: err.message || "PDF konnte nicht erstellt werden" });
@@ -896,17 +945,14 @@ export default function InvoiceDetail() {
   const handlePrintPdf = async () => {
     if (!invoiceId) return;
     try {
-      const { data, error } = await supabase.functions.invoke("generate-invoice-pdf", {
-        body: { invoiceId },
-      });
-      if (error) throw error;
-      const html = decodeURIComponent(escape(atob(data.pdf)));
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-        setTimeout(() => printWindow.print(), 500);
+      const pdfBlob = await buildInvoicePdfBlob();
+      const url = URL.createObjectURL(pdfBlob);
+      const win = window.open(url);
+      if (win) {
+        win.addEventListener("load", () => setTimeout(() => win.print(), 300));
       }
+      // URL nach 60s freigeben (Browser muss PDF noch laden können)
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Drucken fehlgeschlagen", description: err.message });
     }
