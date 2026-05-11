@@ -342,10 +342,24 @@ export default function InvoiceDetail() {
       return;
     }
 
+    // Bei Rechnungs-Entwürfen: Datum + Fälligkeit auf heute setzen (UI-Default,
+    // wird erst beim Speichern in die DB übernommen — User kann manuell ändern)
+    const isDraftRechnung = data.status === "entwurf" && data.typ === "rechnung";
+    let effectiveDatum = data.datum;
+    let effectiveFaellig: string = data.faellig_am || "";
+    if (isDraftRechnung) {
+      effectiveDatum = format(new Date(), "yyyy-MM-dd");
+      const zb = (data.zahlungsbedingungen || "").toLowerCase();
+      const tage = zb.includes("sofort") ? 0 : parseInt(zb.match(/(\d+)/)?.[1] || "14");
+      const due = new Date();
+      due.setDate(due.getDate() + tage);
+      effectiveFaellig = format(due, "yyyy-MM-dd");
+    }
+
     setForm({
       typ: data.typ,
-      nummer: data.nummer,
-      laufnummer: data.laufnummer,
+      nummer: data.nummer || "",
+      laufnummer: data.laufnummer || 0,
       jahr: data.jahr,
       status: data.status,
       kunde_name: data.kunde_name,
@@ -356,8 +370,8 @@ export default function InvoiceDetail() {
       kunde_email: data.kunde_email || "",
       kunde_telefon: data.kunde_telefon || "",
       kunde_uid: data.kunde_uid || "",
-      datum: data.datum,
-      faellig_am: data.faellig_am || "",
+      datum: effectiveDatum,
+      faellig_am: effectiveFaellig,
       leistungsdatum: data.leistungsdatum || "",
       leistungsdatum_bis: (data as any).leistungsdatum_bis || "",
       zahlungsbedingungen: data.zahlungsbedingungen || "",

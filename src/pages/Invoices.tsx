@@ -25,7 +25,8 @@ import {
 interface Invoice {
   id: string;
   typ: string;
-  nummer: string;
+  nummer: string | null;
+  laufnummer: number | null;
   status: string;
   kunde_name: string;
   datum: string;
@@ -37,6 +38,7 @@ interface Invoice {
   gueltig_bis: string | null;
   bezahlt_betrag: number;
   archiviert: boolean;
+  zahlungsbedingungen?: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -135,7 +137,7 @@ export default function Invoices() {
   const fetchInvoices = async () => {
     const { data, error } = await supabase
       .from("invoices")
-      .select("id, typ, nummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag, archiviert, storno_nummer, storno_datum, kundennummer")
+      .select("id, typ, nummer, laufnummer, status, kunde_name, datum, brutto_summe, netto_summe, project_id, faellig_am, mahnstufe, gueltig_bis, bezahlt_betrag, archiviert, storno_nummer, storno_datum, kundennummer, zahlungsbedingungen")
       .order("datum", { ascending: false })
       .order("created_at", { ascending: false });
 
@@ -186,13 +188,44 @@ export default function Invoices() {
       return;
     }
 
-    const { error } = await supabase.from("invoices").update({ status: newStatus }).eq("id", invoiceId);
+    // Wenn Entwurf → anderer Status: Nummer vergeben + Datum/Fälligkeit aktualisieren
+    const update: any = { status: newStatus };
+    let assignedNummer: string | null = null;
+    let assignedLaufnummer: number | null = null;
+    if (inv.status === "entwurf" && newStatus !== "entwurf" && !inv.nummer) {
+      const { data: numData, error: numError } = await supabase.rpc("next_invoice_number", {
+        p_typ: inv.typ,
+        p_jahr: new Date().getFullYear(),
+      });
+      if (numError) {
+        toast({ variant: "destructive", title: "Fehler", description: "Nummer konnte nicht vergeben werden" });
+        return;
+      }
+      assignedNummer = numData as string;
+      assignedLaufnummer = parseInt(assignedNummer.replace(/\D/g, "").slice(-3)) || 1;
+      update.nummer = assignedNummer;
+      update.laufnummer = assignedLaufnummer;
+      // Datum auf heute, Fälligkeit gemäß zahlungsbedingungen
+      const today = format(new Date(), "yyyy-MM-dd");
+      update.datum = today;
+      const isSofort = ((inv as any).zahlungsbedingungen || "").toLowerCase().includes("sofort");
+      const tage = isSofort ? 0 : parseInt(((inv as any).zahlungsbedingungen || "").match(/(\d+)/)?.[1] || "14");
+      const due = new Date();
+      due.setDate(due.getDate() + tage);
+      update.faellig_am = format(due, "yyyy-MM-dd");
+    }
+
+    const { error } = await supabase.from("invoices").update(update).eq("id", invoiceId);
     if (error) {
       toast({ variant: "destructive", title: "Fehler", description: "Status konnte nicht geändert werden" });
       return;
     }
 
-    setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
+    setInvoices(prev => prev.map(i => i.id === invoiceId ? {
+      ...i,
+      status: newStatus,
+      ...(assignedNummer ? { nummer: assignedNummer, laufnummer: assignedLaufnummer!, datum: update.datum, faellig_am: update.faellig_am } : {}),
+    } : i));
     toast({ title: "Status geändert", description: `Status auf "${statusLabels[newStatus]}" gesetzt` });
 
     // When offer is accepted → open CreateProjectDialog
