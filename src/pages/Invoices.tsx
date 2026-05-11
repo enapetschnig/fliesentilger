@@ -829,6 +829,10 @@ export default function Invoices() {
                                 <Badge className="bg-red-100 text-red-800 text-xs">
                                   Storniert{(inv as any).storno_nummer ? ` (${(inv as any).storno_nummer})` : ""}
                                 </Badge>
+                              ) : inv.typ === "rechnung" && inv.status === "entwurf" ? (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  Entwurf
+                                </Badge>
                               ) : (
                               <Select
                                 value={inv.status}

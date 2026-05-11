@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,34 +31,49 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
   const [exportAll, setExportAll] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState("");
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
+
+  // Build the same filter that handleExport uses
+  const buildFilter = (countOnly: boolean) => {
+    let q: any = supabase.from("invoices").select(countOnly ? "id" : "*", countOnly ? { count: "exact", head: true } : {})
+      .eq("typ", "rechnung")
+      .eq("jahr", parseInt(year))
+      .neq("status", "entwurf")
+      .gt("brutto_summe", 0);
+    if (!exportAll) {
+      const monthNum = parseInt(month);
+      const startDate = `${year}-${String(monthNum).padStart(2, "0")}-01`;
+      const endMonth = monthNum === 12 ? 1 : monthNum + 1;
+      const endYear = monthNum === 12 ? parseInt(year) + 1 : parseInt(year);
+      const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+      q = q.gte("datum", startDate).lt("datum", endDate);
+    }
+    if (!includeStorno) q = q.neq("status", "storniert");
+    return q;
+  };
+
+  // Live-Count beim Öffnen / bei Filter-Änderung
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setCountLoading(true);
+    (async () => {
+      const { count } = await buildFilter(true);
+      if (!cancelled) {
+        setPreviewCount(count ?? 0);
+        setCountLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, year, month, exportAll, includeStorno]);
 
   const handleExport = async () => {
     setExporting(true);
     setProgress("Lade Rechnungen...");
 
     try {
-      // Build query
-      let query = supabase
-        .from("invoices")
-        .select("*")
-        .eq("typ", "rechnung")
-        .eq("jahr", parseInt(year));
-
-      if (!exportAll) {
-        // Filter by month
-        const monthNum = parseInt(month);
-        const startDate = `${year}-${String(monthNum).padStart(2, "0")}-01`;
-        const endMonth = monthNum === 12 ? 1 : monthNum + 1;
-        const endYear = monthNum === 12 ? parseInt(year) + 1 : parseInt(year);
-        const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
-        query = query.gte("datum", startDate).lt("datum", endDate);
-      }
-
-      if (!includeStorno) {
-        query = query.neq("status", "storniert");
-      }
-
-      const { data: invoices, error } = await query.order("laufnummer");
+      const { data: invoices, error } = await buildFilter(false).order("laufnummer");
       if (error) throw error;
 
       if (!invoices || invoices.length === 0) {
@@ -238,6 +253,19 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
             <Label htmlFor="includeStorno">Stornierte Rechnungen einschließen</Label>
           </div>
 
+          <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+            {countLoading ? (
+              <span className="text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Lade Anzahl...
+              </span>
+            ) : previewCount === 0 ? (
+              <span className="text-muted-foreground">Keine Rechnungen im gewählten Zeitraum.</span>
+            ) : (
+              <span><strong>{previewCount}</strong> {previewCount === 1 ? "Rechnung" : "Rechnungen"} werden exportiert</span>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">Nur erstellte Rechnungen (keine Entwürfe, keine 0-€-Rechnungen).</p>
+          </div>
+
           {exporting && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -248,7 +276,7 @@ export function ExportInvoicesDialog({ open, onClose, bankData }: ExportInvoices
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose} disabled={exporting}>Abbrechen</Button>
-          <Button onClick={handleExport} disabled={exporting} className="gap-2">
+          <Button onClick={handleExport} disabled={exporting || previewCount === 0} className="gap-2">
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {exporting ? "Exportiert..." : "Als ZIP herunterladen"}
           </Button>
