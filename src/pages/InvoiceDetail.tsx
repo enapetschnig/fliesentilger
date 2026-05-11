@@ -153,6 +153,8 @@ export default function InvoiceDetail() {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [invoiceId, setInvoiceId] = useState<string | null>(isNew ? null : id || null);
   const [items, setItems] = useState<InvoiceItem[]>([
     { position: 1, beschreibung: "", menge: 1, einheit: "Stk.", einzelpreis: 0, gesamtpreis: 0 },
@@ -1057,7 +1059,21 @@ export default function InvoiceDetail() {
 
   const handleConvertToInvoice = async () => {
     if (!invoiceId || form.typ !== "angebot") return;
-    doConvert(items.map(it => ({ ...it })));
+    if (converting) return;
+    if (form.status === "verrechnet") {
+      toast({ variant: "destructive", title: "Bereits umgewandelt", description: "Dieses Angebot wurde bereits in eine Rechnung umgewandelt." });
+      return;
+    }
+    setConverting(true);
+    try {
+      doConvert(items.map(it => ({ ...it })));
+    } finally {
+      // Wir setzen converting NICHT zurück bei Erfolg, weil die Component
+      // gleich entladen wird durch navigate(). Bei Fehler vor navigate:
+      // Reset wird durch finally hier abgedeckt nur wenn doConvert sync throws.
+      // doConvert ist sync und kann nur durch sessionStorage failen → ok.
+      setConverting(false);
+    }
   };
 
   const doConvert = (finalItems: typeof items) => {
@@ -1097,16 +1113,30 @@ export default function InvoiceDetail() {
 
   const handleCancel = async () => {
     if (!invoiceId) return;
+    // Double-click + Multi-Device-Schutz
+    if (cancelling) return;
+    if (form.status === "storniert") {
+      toast({ variant: "destructive", title: "Bereits storniert" });
+      return;
+    }
+    setCancelling(true);
     try {
       const stornoNummer = `S-${form.nummer || invoiceId.substring(0, 8)}`;
       const stornoDatum = new Date().toISOString().split("T")[0];
-      const { error } = await supabase.from("invoices").update({
+      // Update nur wenn Status noch nicht "storniert" — schützt vor Race-Conditions
+      // (anderer Tab/Device hat schon storniert)
+      const { data: updated, error } = await supabase.from("invoices").update({
         status: "storniert",
         storno_nummer: stornoNummer,
         storno_datum: stornoDatum,
         storno_grund: "Storniert durch Benutzer",
-      }).eq("id", invoiceId);
+      }).eq("id", invoiceId).neq("status", "storniert").select("id").maybeSingle();
       if (error) throw error;
+      if (!updated) {
+        toast({ variant: "destructive", title: "Bereits storniert", description: "Die Rechnung wurde bereits in einem anderen Tab/Gerät storniert." });
+        setCancelling(false);
+        return;
+      }
       setForm(prev => ({ ...prev, status: "storniert", storno_nummer: stornoNummer, storno_datum: stornoDatum, storno_grund: "Storniert durch Benutzer" }));
 
       // Stornobeleg sofort erstellen und herunterladen
@@ -1133,6 +1163,8 @@ export default function InvoiceDetail() {
       toast({ title: "Rechnung storniert", description: `Stornobeleg ${stornoNummer} wurde erstellt` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Fehler", description: err.message || "Stornierung fehlgeschlagen" });
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -1301,9 +1333,9 @@ export default function InvoiceDetail() {
                       </Select>
                     )}
                     {form.typ === "angebot" && form.status !== "verrechnet" && form.status !== "abgelehnt" && (
-                      <Button onClick={handleConvertToInvoice} variant="default" size="sm" className="gap-1.5">
+                      <Button onClick={handleConvertToInvoice} disabled={converting} variant="default" size="sm" className="gap-1.5">
                         <ArrowRightLeft className="w-4 h-4" />
-                        In Rechnung umwandeln
+                        {converting ? "Umwandeln..." : "In Rechnung umwandeln"}
                       </Button>
                     )}
                     <Button onClick={handleDuplicate} variant="outline" size="sm" className="gap-1.5">
@@ -1330,8 +1362,8 @@ export default function InvoiceDetail() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleCancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Stornieren
+                            <AlertDialogAction onClick={handleCancel} disabled={cancelling} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              {cancelling ? "Storniert..." : "Stornieren"}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -2772,7 +2804,14 @@ export default function InvoiceDetail() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setStornoDialogOpen(false)}>Abbrechen</Button>
-              <Button variant="destructive" disabled={!stornoGrund.trim()} onClick={async () => {
+              <Button variant="destructive" disabled={!stornoGrund.trim() || cancelling} onClick={async () => {
+                if (cancelling) return;
+                if (form.status === "storniert") {
+                  toast({ variant: "destructive", title: "Bereits storniert" });
+                  return;
+                }
+                setCancelling(true);
+                try {
                 const year = form.jahr || new Date().getFullYear();
                 const { data: maxStorno } = await supabase
                   .from("invoices")
@@ -2790,12 +2829,18 @@ export default function InvoiceDetail() {
                 const stornoNummer = `ST-${year}-${String(nextNum).padStart(3, "0")}`;
                 const stornoDatum = new Date().toISOString().split("T")[0];
 
-                await supabase.from("invoices").update({
+                // Update nur wenn noch nicht storniert (Multi-Device-Schutz)
+                const { data: updated } = await supabase.from("invoices").update({
                   status: "storniert",
                   storno_nummer: stornoNummer,
                   storno_datum: stornoDatum,
                   storno_grund: stornoGrund.trim(),
-                }).eq("id", invoiceId);
+                }).eq("id", invoiceId).neq("status", "storniert").select("id").maybeSingle();
+                if (!updated) {
+                  toast({ variant: "destructive", title: "Bereits storniert", description: "Wurde inzwischen in einem anderen Tab/Gerät storniert." });
+                  setCancelling(false);
+                  return;
+                }
 
                 // Update local form state with storno data
                 setForm(prev => ({
@@ -2829,8 +2874,13 @@ export default function InvoiceDetail() {
                 toast({ title: "Rechnung storniert", description: `Stornonummer: ${stornoNummer}` });
                 setStornoDialogOpen(false);
                 navigate("/invoices");
+                } catch (err: any) {
+                  toast({ variant: "destructive", title: "Fehler", description: err.message || "Stornierung fehlgeschlagen" });
+                } finally {
+                  setCancelling(false);
+                }
               }}>
-                Rechnung stornieren
+                {cancelling ? "Storniert..." : "Rechnung stornieren"}
               </Button>
             </div>
           </DialogContent>
