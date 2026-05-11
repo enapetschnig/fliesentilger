@@ -62,7 +62,7 @@ function buildHtml(invoice: any, items: any[], bank: { kontoinhaber: string; iba
   }
 
   const metaParts: string[] = [];
-  metaParts.push(`<div><span class="meta-label">${typLabel} Nr.</span><span class="meta-value">${invoice.nummer}</span></div>`);
+  metaParts.push(`<div><span class="meta-label">${typLabel} Nr.</span><span class="meta-value">${invoice.nummer || "—"}</span></div>`);
   metaParts.push(`<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`);
   if (!isAngebot) {
     if (leistungFormatted && leistungBisFormatted) {
@@ -87,7 +87,7 @@ function buildHtml(invoice: any, items: any[], bank: { kontoinhaber: string; iba
     : `<div class="closing-text">Wir bedanken uns für Ihren Auftrag und bitten um Überweisung des Rechnungsbetrages innerhalb der angegebenen Zahlungsfrist.</div>`;
 
   return `<!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer}</title>
+<html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Entwurf"}</title>
 <style>
   @page { size: A4; margin: 22mm 15mm 28mm 15mm; }
   @media print {

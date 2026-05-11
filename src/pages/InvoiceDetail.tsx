@@ -494,7 +494,7 @@ export default function InvoiceDetail() {
   const bruttoSumme = r2(nettoSumme + mwstBetrag);
   const restBetrag = r2(bruttoSumme - form.bezahlt_betrag);
 
-  const canDelete = form.typ === "angebot";
+  const canDelete = form.typ === "angebot" || (form.typ === "rechnung" && form.status === "entwurf");
   const canCancel = !isNew && !!invoiceId && id !== "new" && form.typ === "rechnung" && form.status !== "storniert" && form.status !== "entwurf";
 
   const handleSave = async (asDraft?: boolean): Promise<boolean> => {
@@ -627,40 +627,63 @@ export default function InvoiceDetail() {
         kundennummer: (form as any).kundennummer || null,
       };
 
-      if (isNew || !savedId) {
+      // Nummer wird nur vergeben wenn:
+      // - Angebot (immer)
+      // - ODER: finale Rechnung (nicht Entwurf) UND noch keine Nummer vergeben
+      const needsNewNumber =
+        saveStatus !== "entwurf" &&
+        (form.typ === "angebot" || !form.nummer);
+
+      let assignedNummer: string | null = form.nummer || null;
+      let assignedLaufnummer: number | null = form.laufnummer || null;
+
+      if (needsNewNumber) {
         const { data: numData, error: numError } = await supabase.rpc("next_invoice_number", {
           p_typ: form.typ,
           p_jahr: form.jahr,
         });
-
         if (numError) throw numError;
-        const nummer = numData as string;
-        const laufnummer = parseInt(nummer.replace(/\D/g, "").slice(-3)) || 1;
+        assignedNummer = numData as string;
+        assignedLaufnummer = parseInt(assignedNummer.replace(/\D/g, "").slice(-3)) || 1;
+      }
 
+      if (isNew || !savedId) {
         const { data: insertData, error: insertError } = await supabase
           .from("invoices")
           .insert({
             user_id: user.id,
             typ: form.typ,
-            nummer,
-            laufnummer,
+            nummer: assignedNummer,
+            laufnummer: assignedLaufnummer,
             jahr: form.jahr,
             ...invoicePayload,
           })
-          .select("id, nummer")
+          .select("id, nummer, laufnummer")
           .single();
 
         if (insertError) throw insertError;
         savedId = insertData.id;
         setInvoiceId(savedId);
-        updateField("nummer", insertData.nummer);
+        if (insertData.nummer) updateField("nummer", insertData.nummer);
+        if (insertData.laufnummer) (setForm as any)((prev: any) => ({ ...prev, laufnummer: insertData.laufnummer }));
       } else {
+        // UPDATE — wenn jetzt erst Nummer vergeben wurde, mit ins Payload
+        const updatePayload: any = { ...invoicePayload };
+        if (needsNewNumber && assignedNummer) {
+          updatePayload.nummer = assignedNummer;
+          updatePayload.laufnummer = assignedLaufnummer;
+        }
         const { error: updateError } = await supabase
           .from("invoices")
-          .update(invoicePayload)
+          .update(updatePayload)
           .eq("id", savedId);
 
         if (updateError) throw updateError;
+
+        if (needsNewNumber && assignedNummer) {
+          updateField("nummer", assignedNummer);
+          (setForm as any)((prev: any) => ({ ...prev, laufnummer: assignedLaufnummer }));
+        }
       }
 
       await supabase.from("invoice_items").delete().eq("invoice_id", savedId!);
@@ -827,7 +850,7 @@ export default function InvoiceDetail() {
       // Archive the HTML
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const fileName = `${form.nummer}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.html`;
+        const fileName = `${form.nummer || "Entwurf"}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.html`;
         const blob = new Blob([html], { type: "text/html" });
         await supabase.storage
           .from("invoice-pdfs")
@@ -1140,7 +1163,7 @@ export default function InvoiceDetail() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-[1600px]">
         <PageHeader
-          title={isNew ? `Neue ${typLabel} erstellen` : `${typLabel} ${form.nummer}`}
+          title={isNew ? `Neue ${typLabel} erstellen` : `${typLabel} ${form.nummer || "(Entwurf)"}`}
           backPath="/invoices"
         />
 
@@ -1151,7 +1174,7 @@ export default function InvoiceDetail() {
               <CardContent className="pt-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <Badge variant="outline" className="text-lg px-4 py-1 font-mono">{form.nummer}</Badge>
+                    <Badge variant="outline" className="text-lg px-4 py-1 font-mono">{form.nummer || "Entwurf"}</Badge>
                     <Badge className={statusColors[form.status] || ""}>
                       {statusLabels[form.status] || form.status}
                     </Badge>

@@ -208,17 +208,20 @@ export function buildInvoiceHtml(
     </div>`
       : "";
 
-  // Extract Zahlungsfrist days for closing text
+  // Extract Zahlungsfrist for closing text
+  const isSofort = (invoice.zahlungsbedingungen || "").toLowerCase().includes("sofort");
   const zahlungsTage = invoice.zahlungsbedingungen
     ? invoice.zahlungsbedingungen.match(/(\d+)/)?.[1] || "14"
     : "14";
 
   const closingText = isAngebot
     ? `<div class="closing-text">Wir freuen uns auf Ihren Auftrag und stehen für Rückfragen jederzeit gerne zur Verfügung.</div>`
-    : `<div class="closing-text">Wir bedanken uns für Ihren Auftrag und bitten um Überweisung des Rechnungsbetrages innerhalb von ${zahlungsTage} Tagen.</div>`;
+    : isSofort
+      ? `<div class="closing-text">Wir bedanken uns für Ihren Auftrag und bitten um sofortige Überweisung des Rechnungsbetrages.</div>`
+      : `<div class="closing-text">Wir bedanken uns für Ihren Auftrag und bitten um Überweisung des Rechnungsbetrages innerhalb von ${zahlungsTage} Tagen.</div>`;
 
   return `<!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Vorschau"}</title>
+<html lang="de"><head><meta charset="utf-8"><title>${typLabel} ${invoice.nummer || "Entwurf"}</title>
 <style>
   @page { size: A4; margin: 15mm 15mm 25mm 15mm; }
   @media print {
@@ -331,7 +334,7 @@ ${mahnBanner}
 
 <!-- Document Title + Betreff (kept together for page breaks) -->
 <div style="page-break-inside:avoid;">
-<div class="doc-title">${typLabel} Nr. ${invoice.nummer || ""}</div>
+<div class="doc-title">${invoice.nummer ? `${typLabel} Nr. ${invoice.nummer}` : `${typLabel} — Entwurf`}</div>
 ${invoice.betreff ? `<div style="margin-bottom:12px;font-size:10pt;white-space:pre-line;">${invoice.betreff.replace(/</g, "&lt;")}</div>` : ""}
 </div>
 

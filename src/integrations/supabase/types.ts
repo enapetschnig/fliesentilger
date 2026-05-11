@@ -665,7 +665,7 @@ export type Database = {
           kunde_titel: string | null
           kunde_uid: string | null
           kundennummer: string | null
-          laufnummer: number
+          laufnummer: number | null
           leistungsdatum: string | null
           leistungsdatum_bis: string | null
           mahnstufe: number | null
@@ -673,7 +673,7 @@ export type Database = {
           mwst_satz: number
           netto_summe: number
           notizen: string | null
-          nummer: string
+          nummer: string | null
           betreff: string | null
           project_id: string | null
           rabatt_betrag: number | null
@@ -712,7 +712,7 @@ export type Database = {
           kunde_titel?: string | null
           kunde_uid?: string | null
           kundennummer?: string | null
-          laufnummer: number
+          laufnummer?: number | null
           leistungsdatum?: string | null
           leistungsdatum_bis?: string | null
           mahnstufe?: number | null
@@ -720,7 +720,7 @@ export type Database = {
           mwst_satz?: number
           netto_summe?: number
           notizen?: string | null
-          nummer: string
+          nummer?: string | null
           betreff?: string | null
           project_id?: string | null
           rabatt_betrag?: number | null
@@ -759,7 +759,7 @@ export type Database = {
           kunde_titel?: string | null
           kunde_uid?: string | null
           kundennummer?: string | null
-          laufnummer?: number
+          laufnummer?: number | null
           leistungsdatum?: string | null
           leistungsdatum_bis?: string | null
           mahnstufe?: number | null
@@ -767,7 +767,7 @@ export type Database = {
           mwst_satz?: number
           netto_summe?: number
           notizen?: string | null
-          nummer?: string
+          nummer?: string | null
           betreff?: string | null
           project_id?: string | null
           rabatt_betrag?: number | null

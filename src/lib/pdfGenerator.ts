@@ -157,7 +157,7 @@ export async function generateInvoicePdf(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(13);
   pdf.setTextColor(0, 0, 0);
-  pdf.text(`${typLabel} Nr. ${invoice.nummer || ""}`.trim(), ml, y);
+  pdf.text(invoice.nummer ? `${typLabel} Nr. ${invoice.nummer}` : `${typLabel} — Entwurf`, ml, y);
   y += 2;
   pdf.setDrawColor(204, 0, 0);
   pdf.setLineWidth(0.8);
@@ -386,12 +386,17 @@ export async function generateInvoicePdf(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   pdf.setTextColor(0, 0, 0);
+  const isSofort = (invoice.zahlungsbedingungen || "").toLowerCase().includes("sofort");
   const zahlungsTage = invoice.zahlungsbedingungen?.match(/(\d+)/)?.[1] || "14";
   if (isAngebot) {
     pdf.text("Wir freuen uns auf Ihren Auftrag und stehen für Rückfragen jederzeit gerne zur Verfügung.", ml, y, { maxWidth: contentWidth });
     y += 8;
   } else {
-    pdf.text(`Wir bitten um Überweisung des Rechnungsbetrages innerhalb von ${zahlungsTage} Tagen.`, ml, y, { maxWidth: contentWidth });
+    pdf.text(
+      isSofort
+        ? "Wir bitten um sofortige Überweisung des Rechnungsbetrages."
+        : `Wir bitten um Überweisung des Rechnungsbetrages innerhalb von ${zahlungsTage} Tagen.`,
+      ml, y, { maxWidth: contentWidth });
     y += 5;
     pdf.setFontSize(7.5);
     pdf.setTextColor(0, 0, 0);

@@ -228,7 +228,7 @@ export default function Invoices() {
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const handleDownloadPdf = async (invoiceId: string, nummer: string, e: React.MouseEvent) => {
+  const handleDownloadPdf = async (invoiceId: string, nummer: string | null, e: React.MouseEvent) => {
     e.stopPropagation();
     setDownloadingId(invoiceId);
     try {
@@ -300,7 +300,7 @@ export default function Invoices() {
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${nummer}.pdf`;
+      a.download = `${nummer || "Entwurf"}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -636,7 +636,7 @@ export default function Invoices() {
                           className={`cursor-pointer hover:bg-muted/50 ${overdue ? "bg-red-50" : ""}`}
                           onClick={() => navigate(`/invoices/${inv.id}`)}
                         >
-                          <TableCell className="font-mono font-medium">{inv.nummer}</TableCell>
+                          <TableCell className="font-mono font-medium">{inv.nummer || <span className="text-muted-foreground italic">Entwurf</span>}</TableCell>
                           <TableCell>
                             <Badge variant={inv.typ === "rechnung" ? "default" : "secondary"}>
                               {inv.typ === "rechnung" ? (inv.status === "entwurf" ? "Rechnung (Entwurf)" : "Rechnung") : "Angebot"}
