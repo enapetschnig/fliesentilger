@@ -408,6 +408,9 @@ export default function InvoiceDetail() {
       .eq("invoice_id", invoiceId)
       .order("position");
 
+    // Items IMMER zurücksetzen — auch wenn DB-Items leer sind. Sonst können
+    // State-Leaks zwischen Rechnungen entstehen (Defense-in-Depth gegen
+    // den ursprünglichen Doppel-INSERT-Bug-Pfad).
     if (itemsData && itemsData.length > 0) {
       setItems(itemsData.map(it => ({
         id: it.id,
@@ -422,6 +425,8 @@ export default function InvoiceDetail() {
         produktnummer: (it as any).produktnummer || "",
         gesamtpreis: Number(it.gesamtpreis),
       })));
+    } else {
+      setItems([{ position: 1, beschreibung: "", menge: 1, einheit: "Stk.", einzelpreis: 0, gesamtpreis: 0 }]);
     }
 
     setLoading(false);
@@ -520,6 +525,18 @@ export default function InvoiceDetail() {
   const handleSave = async (asDraft?: boolean): Promise<boolean> => {
     // Double-click protection
     if (saving) return false;
+
+    // Sanity-Check: State und URL müssen übereinstimmen. Schützt gegen den
+    // historischen Doppel-INSERT-Bug-Pfad falls je wieder State und Route
+    // auseinanderdriften (z.B. wenn replaceState wieder ohne Re-Mount eingesetzt wird).
+    if (invoiceId && id && id !== "new" && invoiceId !== id) {
+      toast({
+        variant: "destructive",
+        title: "Sicherheits-Stopp",
+        description: "Rechnungs-ID stimmt nicht mit URL überein. Seite bitte neu laden.",
+      });
+      return false;
+    }
 
     if (!form.kunde_name.trim()) {
       toast({ variant: "destructive", title: "Fehler", description: "Kundenname ist erforderlich" });
