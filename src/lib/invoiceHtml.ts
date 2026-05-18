@@ -175,7 +175,7 @@ export function buildInvoiceHtml(
   if (!isAngebot) {
     if (leistungFormatted && leistungBisFormatted) {
       metaParts.push(
-        `<div><span class="meta-label">Leistungszeitraum</span><span class="meta-value">${leistungFormatted} – ${leistungBisFormatted}</span></div>`
+        `<div><span class="meta-label">Leistungszeitraum</span><span class="meta-value">${leistungFormatted}<br>– ${leistungBisFormatted}</span></div>`
       );
     } else if (leistungFormatted) {
       metaParts.push(

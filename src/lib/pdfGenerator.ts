@@ -130,7 +130,8 @@ export async function generateInvoicePdf(
     const lFrom = invoice.leistungsdatum ? fmtDate(invoice.leistungsdatum) : null;
     const lTo = (invoice as any).leistungsdatum_bis ? fmtDate((invoice as any).leistungsdatum_bis) : null;
     if (lFrom && lTo) {
-      metaRows.push(["Leistungszeitraum", `${lFrom} – ${lTo}`]);
+      // Zeitraum untereinander: erste Zeile von-Datum, zweite Zeile "– bis-Datum"
+      metaRows.push(["Leistungszeitraum", `${lFrom}\n– ${lTo}`]);
     } else if (lFrom) {
       metaRows.push(["Leistungsdatum", lFrom]);
     } else if (lTo) {
@@ -148,7 +149,9 @@ export async function generateInvoicePdf(
     pdf.setFont("helvetica", "bold");
     pdf.text(value, metaX + 38, metaY);
     pdf.setFont("helvetica", "normal");
-    metaY += 5;
+    // Multi-Line-Werte (z.B. Leistungszeitraum): zusätzlicher Zeilen-Vorschub
+    const extraLines = (value.match(/\n/g) || []).length;
+    metaY += 5 + extraLines * 4;
   });
 
   y = Math.max(y, metaY) + 4;

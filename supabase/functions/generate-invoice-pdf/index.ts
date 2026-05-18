@@ -66,7 +66,7 @@ function buildHtml(invoice: any, items: any[], bank: { kontoinhaber: string; iba
   metaParts.push(`<div><span class="meta-label">Datum</span><span class="meta-value">${datumFormatted}</span></div>`);
   if (!isAngebot) {
     if (leistungFormatted && leistungBisFormatted) {
-      metaParts.push(`<div><span class="meta-label">Leistungszeitraum</span><span class="meta-value">${leistungFormatted} – ${leistungBisFormatted}</span></div>`);
+      metaParts.push(`<div><span class="meta-label">Leistungszeitraum</span><span class="meta-value">${leistungFormatted}<br>– ${leistungBisFormatted}</span></div>`);
     } else if (leistungFormatted) {
       metaParts.push(`<div><span class="meta-label">Leistungsdatum</span><span class="meta-value">${leistungFormatted}</span></div>`);
     } else if (leistungBisFormatted) {
