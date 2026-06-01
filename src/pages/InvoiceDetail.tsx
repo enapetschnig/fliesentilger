@@ -320,11 +320,15 @@ export default function InvoiceDetail() {
   };
 
   const fetchTemplates = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("invoice_templates")
-      .select("id, kategorie, name, beschreibung, einheit, einzelpreis, netto_preis, kurzbezeichnung, langbezeichnung, ist_favorit, menge, produktnummer")
+      .select("id, kategorie, name, beschreibung, einheit, einzelpreis, netto_preis, kurzbezeichnung, langbezeichnung, ist_favorit, produktnummer, produktgruppe, artikelnummer, brutto_preis, ust_satz")
       .order("kategorie, name")
       .limit(5000);
+    if (error) {
+      console.error("fetchTemplates Fehler:", error);
+      return;
+    }
     if (data) setTemplates(data.map(t => ({ ...t, einzelpreis: Number(t.einzelpreis), ist_favorit: (t as any).ist_favorit || false })));
   };
 
