@@ -232,10 +232,13 @@ export default function HoursReport() {
     return days;
   };
 
-  const calculateOvertime = (date: Date, totalHours: number): number => {
-    const normalHours = getNormalWorkingHours(date);
-    // Minusstunden werden jetzt auch berechnet (nicht mehr Math.max(0))
-    return totalHours - normalHours;
+  // Plus/Minus-Stunden PRO TAG (nicht pro Eintrag!). Wichtig: an Tagen
+  // mit mehreren Einträgen darf die Normalarbeitszeit nur einmal abgezogen
+  // werden, sonst entstehen falsche -5h-Werte bei kurzen Einzeleinträgen.
+  const calculateDayOvertime = (date: Date, dayEntries: TimeEntry[]): number => {
+    if (dayEntries.length === 0) return 0;
+    const dayTotal = dayEntries.reduce((sum, e) => sum + e.stunden, 0);
+    return dayTotal - getNormalWorkingHours(date);
   };
 
   const calculateLunchBreak = (entry: TimeEntry) => {
@@ -262,10 +265,20 @@ export default function HoursReport() {
 
   const monthDays = generateMonthDays();
   const totalHours = timeEntries.reduce((sum, entry) => sum + entry.stunden, 0);
-  const totalOvertime = timeEntries.reduce((sum, entry) => {
-    const entryDate = parseISO(entry.datum);
-    return sum + calculateOvertime(entryDate, entry.stunden);
-  }, 0);
+  // Plus/Minus pro Tag aggregiert — nicht pro Eintrag!
+  const totalOvertime = (() => {
+    const byDay = new Map<string, TimeEntry[]>();
+    timeEntries.forEach(e => {
+      const key = e.datum;
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key)!.push(e);
+    });
+    let sum = 0;
+    byDay.forEach((entries, datum) => {
+      sum += calculateDayOvertime(parseISO(datum), entries);
+    });
+    return sum;
+  })();
 
   const addBordersToCell = (cell: any, thick: boolean = false, centered: boolean = false) => {
     const borderStyle = thick ? "medium" : "thin";
@@ -365,12 +378,16 @@ export default function HoursReport() {
             // Export MIT Überstunden: Tatsächliche Zeiten verwenden
             const actualMorningEnd = lunchBreak?.start || "";
             const actualAfternoonStart = lunchBreak?.end || "";
-            const actualPauseText = entry.pause_minutes && entry.pause_minutes > 0 && lunchBreak 
-              ? `${lunchBreak.start} - ${lunchBreak.end}` 
+            const actualPauseText = entry.pause_minutes && entry.pause_minutes > 0 && lunchBreak
+              ? `${lunchBreak.start} - ${lunchBreak.end}`
               : "";
-            
-            const overtime = calculateOvertime(dayDate, entry.stunden);
-            const overtimeText = overtime !== 0 ? overtime.toFixed(2) : "";
+
+            // Plus/Minus PRO TAG (nicht pro Eintrag): nur in der einzigen
+            // Tageszeile zeigen wenn nur ein Eintrag — sonst leer, weil
+            // die Tagessumme-Zeile unten den Wert anzeigt.
+            const isOnlyEntry = dayEntries.length === 1;
+            const dayOvertimeForExport = isOnlyEntry ? calculateDayOvertime(dayDate, dayEntries) : 0;
+            const overtimeText = isOnlyEntry && dayOvertimeForExport !== 0 ? dayOvertimeForExport.toFixed(2) : "";
 
             worksheetData.push([
               displayDay,
@@ -420,17 +437,17 @@ export default function HoursReport() {
         // Tagessumme wenn mehrere Einträge am Tag
         if (dayEntries.length > 1) {
           const dayTotalHours = dayEntries.reduce((sum, e) => sum + e.stunden, 0);
-          const dayTotalOvertime = dayEntries.reduce((sum, e) => sum + calculateOvertime(dayDate, e.stunden), 0);
+          // Plus/Minus pro Tag korrekt (Tagessumme − Normalarbeitszeit, einmal!)
+          const dayTotalOvertime = calculateDayOvertime(dayDate, dayEntries);
           if (includeOvertime) {
             worksheetData.push(["", "", "", "", "", "Tagessumme:", dayTotalHours.toFixed(2), dayTotalOvertime !== 0 ? dayTotalOvertime.toFixed(2) : "", "", "", "", ""]);
           } else {
-            // Tagessumme mit Regelarbeitszeit
+            // Tagessumme mit Regelarbeitszeit — einmal pro Tag, nicht × Eintragsanzahl
             const dayOfWeek = dayDate.getDay();
             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
             const isFridayCheck = dayOfWeek === 5;
             const regelarbeitszeitTag = isWeekend ? 0 : (isFridayCheck ? 5 : 8.5);
-            // Bei mehreren Einträgen pro Tag: Regelarbeitszeit * Anzahl Einträge oder einfach die Tagessumme der Regelarbeitszeit
-            worksheetData.push(["", "", "", "", "", "Tagessumme:", (regelarbeitszeitTag * dayEntries.length).toFixed(2), "", "", "", "", ""]);
+            worksheetData.push(["", "", "", "", "", "Tagessumme:", regelarbeitszeitTag.toFixed(2), "", "", "", "", ""]);
           }
         }
       }
@@ -733,6 +750,8 @@ export default function HoursReport() {
                             const dayEntries = timeEntries.filter((e) => isSameDay(parseISO(e.datum), day.date));
                             const dayTotalHours = dayEntries.reduce((sum, e) => sum + e.stunden, 0);
                             const hasMultipleEntries = dayEntries.length > 1;
+                            // Plus/Minus EINMAL pro Tag berechnen, nicht pro Eintrag.
+                            const dayOvertime = calculateDayOvertime(day.date, dayEntries);
 
                             if (dayEntries.length === 0) {
                               return (
@@ -755,7 +774,6 @@ export default function HoursReport() {
 
                             return dayEntries.map((entry, entryIndex) => {
                               const lunchBreak = calculateLunchBreak(entry);
-                              const overtime = calculateOvertime(day.date, entry.stunden);
                               const project = projects[entry.project_id];
                               const ortIcon = entry.location_type === "baustelle" ? "🏗️" : entry.location_type === "werkstatt" ? "🏢" : "";
                               const ortText = entry.location_type === "baustelle" ? "Baustelle" : entry.location_type === "werkstatt" ? "Firma" : "";
@@ -795,9 +813,9 @@ export default function HoursReport() {
                                     )}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    {overtime !== 0 && (
-                                      <span className={`font-medium ${overtime > 0 ? "text-orange-600" : "text-red-600"}`}>
-                                        {overtime > 0 ? "+" : ""}{overtime.toFixed(2)} h
+                                    {isLastEntry && dayOvertime !== 0 && (
+                                      <span className={`font-medium ${dayOvertime > 0 ? "text-orange-600" : "text-red-600"}`}>
+                                        {dayOvertime > 0 ? "+" : ""}{dayOvertime.toFixed(2)} h
                                       </span>
                                     )}
                                   </TableCell>
