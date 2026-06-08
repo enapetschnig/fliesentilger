@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Trash2, Package, Plus, FileText, ArrowRight, Info, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Trash2, Package, Plus, FileText, ArrowRight, Info, CheckCircle2, AlertTriangle, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ export default function MaterialWithdraw() {
   // Projekt-Konsolidierung: alle Material-Entries + Angebot-Positionen für dieses Projekt
   const [projectEntries, setProjectEntries] = useState<{ material: string; einheit: string; menge: number; typ: string }[]>([]);
   const [projectAngebot, setProjectAngebot] = useState<{ beschreibung: string; menge: number; einheit: string }[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Form
   const [showForm, setShowForm] = useState(false);
@@ -280,6 +281,18 @@ export default function MaterialWithdraw() {
   const fmt = (n: number) => n.toLocaleString("de-AT", { maximumFractionDigits: 2 });
   const projektName = filterProjectId ? projects.find(p => p.id === filterProjectId)?.name : null;
 
+  const filteredLieferscheine = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return lieferscheine;
+    return lieferscheine.filter(ls => {
+      const name = (ls.name || "").toLowerCase();
+      const projekt = ((ls.projects as any)?.name || "").toLowerCase();
+      const verfasser = `${ls.profiles?.vorname || ""} ${ls.profiles?.nachname || ""}`.toLowerCase();
+      const datum = ls.datum ? new Date(ls.datum).toLocaleDateString("de-AT") : "";
+      return name.includes(q) || projekt.includes(q) || verfasser.includes(q) || datum.includes(q);
+    });
+  }, [lieferscheine, searchQuery]);
+
   return (
     <div className="min-h-screen bg-background">
       <PageHeader title={filterProjectId ? `Lieferscheine — ${projects.find(p => p.id === filterProjectId)?.name || "Projekt"}` : "Material / Lieferscheine"} backPath={filterProjectId ? `/projects/${filterProjectId}` : "/"} />
@@ -412,10 +425,33 @@ export default function MaterialWithdraw() {
               {filterProjectId ? "Einzelne Lieferscheine" : "Lieferscheine"}
             </CardTitle>
             <CardDescription>
-              {filterProjectId
-                ? "Klick öffnet den jeweiligen Lieferschein"
-                : `${lieferscheine.length} Lieferscheine`}
+              {searchQuery.trim()
+                ? `${filteredLieferscheine.length} von ${lieferscheine.length} Lieferscheinen`
+                : filterProjectId
+                  ? "Klick öffnet den jeweiligen Lieferschein"
+                  : `${lieferscheine.length} Lieferscheine`}
             </CardDescription>
+            {lieferscheine.length > 0 && (
+              <div className="relative mt-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Suchen nach Name, Projekt, Verfasser oder Datum..."
+                  className="pl-9 pr-9"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
+                    aria-label="Suche leeren"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {lieferscheine.length === 0 ? (
@@ -424,9 +460,16 @@ export default function MaterialWithdraw() {
                 <p className="text-lg font-semibold mb-2">Keine Lieferscheine</p>
                 <p className="text-sm text-muted-foreground">Erstelle einen Lieferschein um Material zu verwalten</p>
               </div>
+            ) : filteredLieferscheine.length === 0 ? (
+              <div className="text-center py-8">
+                <Search className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm font-medium mb-1">Keine Treffer</p>
+                <p className="text-xs text-muted-foreground mb-3">für "{searchQuery}"</p>
+                <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>Suche leeren</Button>
+              </div>
             ) : (
               <div className="space-y-2">
-                {lieferscheine.map((ls) => (
+                {filteredLieferscheine.map((ls) => (
                   <div
                     key={ls.id}
                     className={`rounded-lg border bg-card hover:bg-muted/50 cursor-pointer flex items-center justify-between gap-3 transition-colors ${filterProjectId ? "p-2.5" : "p-4"}`}
