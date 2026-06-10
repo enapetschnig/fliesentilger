@@ -53,6 +53,20 @@ export default function MaterialWithdraw() {
     init();
   }, []);
 
+  // WICHTIG: Hooks müssen VOR jedem bedingten return stehen (React-Regel) —
+  // sonst crasht die Seite mit "Rendered more hooks than during previous render".
+  const filteredLieferscheine = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return lieferscheine;
+    return lieferscheine.filter(ls => {
+      const name = (ls.name || "").toLowerCase();
+      const projekt = ((ls.projects as any)?.name || "").toLowerCase();
+      const verfasser = `${ls.profiles?.vorname || ""} ${ls.profiles?.nachname || ""}`.toLowerCase();
+      const datum = ls.datum ? new Date(ls.datum).toLocaleDateString("de-AT") : "";
+      return name.includes(q) || projekt.includes(q) || verfasser.includes(q) || datum.includes(q);
+    });
+  }, [lieferscheine, searchQuery]);
+
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -280,18 +294,6 @@ export default function MaterialWithdraw() {
 
   const fmt = (n: number) => n.toLocaleString("de-AT", { maximumFractionDigits: 2 });
   const projektName = filterProjectId ? projects.find(p => p.id === filterProjectId)?.name : null;
-
-  const filteredLieferscheine = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return lieferscheine;
-    return lieferscheine.filter(ls => {
-      const name = (ls.name || "").toLowerCase();
-      const projekt = ((ls.projects as any)?.name || "").toLowerCase();
-      const verfasser = `${ls.profiles?.vorname || ""} ${ls.profiles?.nachname || ""}`.toLowerCase();
-      const datum = ls.datum ? new Date(ls.datum).toLocaleDateString("de-AT") : "";
-      return name.includes(q) || projekt.includes(q) || verfasser.includes(q) || datum.includes(q);
-    });
-  }, [lieferscheine, searchQuery]);
 
   return (
     <div className="min-h-screen bg-background">

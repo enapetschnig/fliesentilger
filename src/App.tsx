@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,31 +8,35 @@ import { OnboardingProvider } from "./contexts/OnboardingContext";
 import { InstallPromptDialog } from "./components/InstallPromptDialog";
 import { useOnboarding } from "./contexts/OnboardingContext";
 import { supabase } from "@/integrations/supabase/client";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import TimeTracking from "./pages/TimeTracking";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
-import ProjectOverview from "./pages/ProjectOverview";
-import MyHours from "./pages/MyHours";
-import MyDocuments from "./pages/MyDocuments";
-import Reports from "./pages/Reports";
-import ConstructionSites from "./pages/ConstructionSites";
-import Admin from "./pages/Admin";
-import HoursReport from "./pages/HoursReport";
-import Employees from "./pages/Employees";
-import Notepad from "./pages/Notepad";
-import MaterialList from "./pages/MaterialList";
-import Disturbances from "./pages/Disturbances";
-import DisturbanceDetail from "./pages/DisturbanceDetail";
-import Invoices from "./pages/Invoices";
-import InvoiceDetail from "./pages/InvoiceDetail";
-import InvoiceTemplates from "./pages/InvoiceTemplates";
-import Customers from "./pages/Customers";
-import OfferPackages from "./pages/OfferPackages";
-import MaterialWithdraw from "./pages/MaterialWithdraw";
-import LieferscheinDetail from "./pages/LieferscheinDetail";
-import NotFound from "./pages/NotFound";
+
+// Code-Splitting: jede Seite ist ein eigener Chunk — der Browser lädt
+// beim Öffnen nur das, was die jeweilige Seite braucht (statt 2,3 MB
+// für alles inkl. Excel/PDF-Libraries).
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const TimeTracking = lazy(() => import("./pages/TimeTracking"));
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const ProjectOverview = lazy(() => import("./pages/ProjectOverview"));
+const MyHours = lazy(() => import("./pages/MyHours"));
+const MyDocuments = lazy(() => import("./pages/MyDocuments"));
+const Reports = lazy(() => import("./pages/Reports"));
+const ConstructionSites = lazy(() => import("./pages/ConstructionSites"));
+const Admin = lazy(() => import("./pages/Admin"));
+const HoursReport = lazy(() => import("./pages/HoursReport"));
+const Employees = lazy(() => import("./pages/Employees"));
+const Notepad = lazy(() => import("./pages/Notepad"));
+const MaterialList = lazy(() => import("./pages/MaterialList"));
+const Disturbances = lazy(() => import("./pages/Disturbances"));
+const DisturbanceDetail = lazy(() => import("./pages/DisturbanceDetail"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const InvoiceDetail = lazy(() => import("./pages/InvoiceDetail"));
+const InvoiceTemplates = lazy(() => import("./pages/InvoiceTemplates"));
+const Customers = lazy(() => import("./pages/Customers"));
+const OfferPackages = lazy(() => import("./pages/OfferPackages"));
+const MaterialWithdraw = lazy(() => import("./pages/MaterialWithdraw"));
+const LieferscheinDetail = lazy(() => import("./pages/LieferscheinDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Wrapper that forces re-mount when id or query params change
 function InvoiceDetailKeyed() {
@@ -42,6 +46,14 @@ function InvoiceDetailKeyed() {
   return <InvoiceDetail key={key} />;
 }
 import { ProtectedRoute } from "./components/ProtectedRoute";
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+    </div>
+  );
+}
 
 const queryClient = new QueryClient();
 
@@ -64,6 +76,7 @@ function AppContent() {
 
   return (
     <>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public routes */}
         <Route path="/auth" element={<Auth />} />
@@ -97,6 +110,7 @@ function AppContent() {
         <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
 
       {/* Install Prompt Dialog */}
       <InstallPromptDialog

@@ -4,14 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Download, X, Save, Printer, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  buildInvoiceHtml,
   generateEpcQrCode,
   DEFAULT_BANK,
   type InvoiceHtmlData,
   type InvoiceHtmlItem,
   type BankData,
 } from "@/lib/invoiceHtml";
-import { generateInvoicePdf } from "@/lib/pdfGenerator";
 
 // Logo as base64 for jsPDF (loaded once)
 let cachedLogoDataUri: string | null = null;
@@ -132,6 +130,8 @@ export function InvoicePdfPreview({
         } catch {}
       }
 
+      // Dynamischer Import — hält jsPDF aus dem Haupt-Bundle raus
+      const { generateInvoicePdf } = await import("@/lib/pdfGenerator");
       const blob = await generateInvoicePdf(
         formDataRef.current,
         itemsRef.current,
