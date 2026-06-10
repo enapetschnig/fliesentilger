@@ -409,22 +409,22 @@ export default function HoursReport() {
             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
             const isFridayCheck = dayOfWeek === 5;
             const regelarbeitszeit = isWeekend ? 0 : (isFridayCheck ? 5 : 8.5);
-            
-            // Regelarbeitszeiten für Zeiten
-            const regelStart = "07:30";
-            const regelMorningEnd = isFridayCheck ? "12:30" : "12:00";
-            const regelPause = isFridayCheck ? "" : "12:00 - 13:00";
-            const regelAfternoonStart = isFridayCheck ? "" : "13:00";
-            const regelEnd = isFridayCheck ? "12:30" : "17:00";
-            
+
+            // Die Regelzeiten gelten EINMAL pro Tag — nur der erste Eintrag
+            // trägt Zeiten + Stunden, weitere Einträge desselben Tags zeigen
+            // nur Ort/Projekt/Tätigkeit (sonst sieht ein 2-Eintrag-Tag wie
+            // 17h aus). An Wochenenden (Regelarbeitszeit 0) keine fiktiven
+            // Zeiten anzeigen.
+            const carriesHours = entryIndex === 0 && !isWeekend;
+
             worksheetData.push([
               displayDay,
-              regelStart,
-              regelMorningEnd,
-              regelPause,
-              regelAfternoonStart,
-              regelEnd,
-              regelarbeitszeit.toFixed(2),
+              carriesHours ? "07:30" : "",
+              carriesHours ? (isFridayCheck ? "12:30" : "12:00") : "",
+              carriesHours && !isFridayCheck ? "12:00 - 13:00" : "",
+              carriesHours && !isFridayCheck ? "13:00" : "",
+              carriesHours ? (isFridayCheck ? "12:30" : "17:00") : "",
+              carriesHours ? regelarbeitszeit.toFixed(2) : "",
               ortText,
               projektName,
               entry.taetigkeit,
@@ -464,7 +464,8 @@ export default function HoursReport() {
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
           const isFridayCheck = dayOfWeek === 5;
           const regelarbeitszeit = isWeekend ? 0 : (isFridayCheck ? 5 : 8.5);
-          summe += regelarbeitszeit * dayEntries.length;
+          // Regelarbeitszeit zählt EINMAL pro Tag — egal wie viele Einträge
+          summe += regelarbeitszeit;
         }
       }
       return summe;
