@@ -16,12 +16,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
-import { 
-  getNormalWorkingHours, 
-  getDefaultWorkTimes, 
+import {
+  getNormalWorkingHours,
+  getDefaultWorkTimes,
   isNonWorkingDay,
   getWeeklyTargetHours,
-  getTotalWorkingHours
+  getTotalWorkingHours,
+  isNewHoursModel
 } from "@/lib/workingHours";
 
 type Project = {
@@ -787,7 +788,7 @@ const TimeTracking = () => {
                     {getWeeklyTargetHours()}h Wochensoll
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    Mo-Do: 8,5h • Fr: 5h (inkl. 0,5h Überstunde/ZA)
+                    Mo-Do: 8h • Fr: 7h
                   </span>
                 </div>
               </div>
@@ -1272,8 +1273,9 @@ const TimeTracking = () => {
                       const absenceDateObj = new Date(absenceData.date);
                       const dayOfWeek = absenceDateObj.getDay();
                       if (dayOfWeek === 0 || dayOfWeek === 6) return "Wochenende: 0 Stunden";
-                      if (dayOfWeek === 5) return "Freitag: 4,5 Stunden (07:00 - 12:00)";
-                      return "Mo-Do: 8,5 Stunden (07:00 - 16:00, 30min Pause)";
+                      const neu = isNewHoursModel(absenceDateObj);
+                      if (dayOfWeek === 5) return neu ? "Freitag: 7 Stunden (07:00 - 14:30, 30min Pause)" : "Freitag: 5 Stunden (07:00 - 12:00)";
+                      return neu ? "Mo-Do: 8 Stunden (07:00 - 15:30, 30min Pause)" : "Mo-Do: 8,5 Stunden (07:00 - 16:00, 30min Pause)";
                     })()}
                   </div>
                   <div className="pt-2 border-t">

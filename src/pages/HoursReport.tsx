@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getNormalWorkingHours } from "@/lib/workingHours";
+import { getNormalWorkingHours, isNewHoursModel } from "@/lib/workingHours";
 
 interface TimeEntry {
   id: string;
@@ -404,11 +404,22 @@ export default function HoursReport() {
               plz,
             ]);
           } else {
-            // Export OHNE Überstunden: Regelarbeitszeiten verwenden
+            // Export OHNE Überstunden: Regelarbeitszeiten verwenden.
+            // Datumsabhängig: ab Juli 2026 Mo-Do 8h (07:00-15:30) / Fr 7h
+            // (07:00-14:30, mit Pause); davor Mo-Do 8,5h (07:30-17:00,
+            // 1h Pause) / Fr 5h (07:30-12:30, keine Pause).
             const dayOfWeek = dayDate.getDay();
             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
             const isFridayCheck = dayOfWeek === 5;
-            const regelarbeitszeit = isWeekend ? 0 : (isFridayCheck ? 5 : 8.5);
+            const neu = isNewHoursModel(dayDate);
+            const regelarbeitszeit = getNormalWorkingHours(dayDate);
+
+            // Regel-Uhrzeiten je Modell/Tag
+            const rStart = neu ? "07:00" : "07:30";
+            const rMorningEnd = neu ? "12:00" : (isFridayCheck ? "12:30" : "12:00");
+            const rPause = neu ? "12:00 - 12:30" : (isFridayCheck ? "" : "12:00 - 13:00");
+            const rAfternoonStart = neu ? "12:30" : (isFridayCheck ? "" : "13:00");
+            const rEnd = neu ? (isFridayCheck ? "14:30" : "15:30") : (isFridayCheck ? "12:30" : "17:00");
 
             // Die Regelzeiten gelten EINMAL pro Tag — nur der erste Eintrag
             // trägt Zeiten + Stunden, weitere Einträge desselben Tags zeigen
@@ -419,11 +430,11 @@ export default function HoursReport() {
 
             worksheetData.push([
               displayDay,
-              carriesHours ? "07:30" : "",
-              carriesHours ? (isFridayCheck ? "12:30" : "12:00") : "",
-              carriesHours && !isFridayCheck ? "12:00 - 13:00" : "",
-              carriesHours && !isFridayCheck ? "13:00" : "",
-              carriesHours ? (isFridayCheck ? "12:30" : "17:00") : "",
+              carriesHours ? rStart : "",
+              carriesHours ? rMorningEnd : "",
+              carriesHours ? rPause : "",
+              carriesHours ? rAfternoonStart : "",
+              carriesHours ? rEnd : "",
               carriesHours ? regelarbeitszeit.toFixed(2) : "",
               ortText,
               projektName,
@@ -442,11 +453,8 @@ export default function HoursReport() {
           if (includeOvertime) {
             worksheetData.push(["", "", "", "", "", "Tagessumme:", dayTotalHours.toFixed(2), dayTotalOvertime !== 0 ? dayTotalOvertime.toFixed(2) : "", "", "", "", ""]);
           } else {
-            // Tagessumme mit Regelarbeitszeit — einmal pro Tag, nicht × Eintragsanzahl
-            const dayOfWeek = dayDate.getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            const isFridayCheck = dayOfWeek === 5;
-            const regelarbeitszeitTag = isWeekend ? 0 : (isFridayCheck ? 5 : 8.5);
+            // Tagessumme mit Regelarbeitszeit — einmal pro Tag, datumsabhängig
+            const regelarbeitszeitTag = getNormalWorkingHours(dayDate);
             worksheetData.push(["", "", "", "", "", "Tagessumme:", regelarbeitszeitTag.toFixed(2), "", "", "", "", ""]);
           }
         }
@@ -460,12 +468,8 @@ export default function HoursReport() {
         const dayDate = new Date(year, month - 1, day);
         const dayEntries = timeEntries.filter((e) => isSameDay(parseISO(e.datum), dayDate));
         if (dayEntries.length > 0) {
-          const dayOfWeek = dayDate.getDay();
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-          const isFridayCheck = dayOfWeek === 5;
-          const regelarbeitszeit = isWeekend ? 0 : (isFridayCheck ? 5 : 8.5);
-          // Regelarbeitszeit zählt EINMAL pro Tag — egal wie viele Einträge
-          summe += regelarbeitszeit;
+          // Regelarbeitszeit zählt EINMAL pro Tag — datumsabhängig (ab Juli 8/7)
+          summe += getNormalWorkingHours(dayDate);
         }
       }
       return summe;
