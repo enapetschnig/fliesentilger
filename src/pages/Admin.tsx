@@ -12,6 +12,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AenderungswunschKnopf } from "@/components/aenderungswunsch/AenderungswunschKnopf";
+import { AenderungswuenscheListe } from "@/components/aenderungswunsch/AenderungswuenscheListe";
+import { NeuerungenPflege } from "@/components/neuerungen/NeuerungenPflege";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -588,23 +591,25 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-50 shadow-sm">
+      {/* Header — data-seitenkopf: eigene Leiste statt PageHeader, sonst
+          käme der Melde-Knopf zusätzlich schwebend, also doppelt. */}
+      <header data-seitenkopf className="border-b bg-card sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/")} data-bildschirmfoto="aus">
               <ArrowLeft className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Zurück</span>
             </Button>
-            <img 
+            <img
               src="/logo-tilger.png"
               alt="Fliesentechnik Tilger"
-              className="h-8 sm:h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity object-contain" 
+              className="h-8 sm:h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity object-contain"
               onClick={() => navigate("/")}
             />
             <div className="flex-1">
               <h1 className="text-xl sm:text-2xl font-bold">Admin-Bereich</h1>
             </div>
+            <AenderungswunschKnopf gestalt="kopf" />
           </div>
         </div>
       </header>
@@ -1090,6 +1095,12 @@ export default function Admin() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ===== ÄNDERUNGSWÜNSCHE ===== */}
+        <section className="space-y-6">
+          <NeuerungenPflege />
+          <AenderungswuenscheListe />
+        </section>
 
       </main>
 

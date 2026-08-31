@@ -11,3 +11,10 @@ verify_jwt = false
 
 [functions.create-team-time-entries]
 verify_jwt = false
+
+# Das CRM schickt nur das gemeinsame Geheimnis, keinen JWT. Ohne diese Zeile
+# blockt das Gateway mit UNAUTHORIZED_NO_AUTH_HEADER, bevor die Funktion
+# ueberhaupt laeuft — es kaeme kein einziges Bild an. Die Funktion schuetzt
+# sich selbst ueber COCKPIT_SECRET.
+[functions.wunsch-datei]
+verify_jwt = false

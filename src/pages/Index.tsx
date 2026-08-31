@@ -16,6 +16,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import { AenderungswunschKnopf } from "@/components/aenderungswunsch/AenderungswunschKnopf";
+import { ErledigteWuensche } from "@/components/aenderungswunsch/ErledigteWuensche";
+import { NeuerungenBanner } from "@/components/neuerungen/NeuerungenBanner";
 
 type Project = {
   id: string;
@@ -264,8 +267,10 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-50 shadow-sm">
+      {/* Header — data-seitenkopf: die Startseite baut ihre Leiste selbst,
+          statt PageHeader zu nehmen. Ohne die Markierung stünde der
+          schwebende Melde-Knopf zusätzlich unten rechts, also doppelt. */}
+      <header data-seitenkopf className="border-b bg-card sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex justify-between items-center gap-3">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -276,9 +281,11 @@ export default function Index() {
                 <span className="text-sm sm:text-base font-semibold">{userName || "Benutzer"}</span>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+            <AenderungswunschKnopf gestalt="kopf" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" data-bildschirmfoto="aus">
                   <UserIcon className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">Menü</span>
                 </Button>
@@ -304,6 +311,7 @@ export default function Index() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
@@ -335,6 +343,11 @@ export default function Index() {
 
       {/* Main Content */}
       <main className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+        {/* Rückmeldung an den Melder: sieht jeder für die eigenen Wünsche.
+            Das "Das ist neu"-Banner dagegen nur Administratoren. */}
+        <ErledigteWuensche />
+        {user && isAdmin && <NeuerungenBanner userId={user.id} />}
+
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">
             {isAdmin ? "Admin Dashboard" : "Mein Dashboard"}

@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -46,6 +46,7 @@ function InvoiceDetailKeyed() {
   return <InvoiceDetail key={key} />;
 }
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AenderungswunschKnopf } from "./components/aenderungswunsch/AenderungswunschKnopf";
 
 function PageLoader() {
   return (
@@ -62,6 +63,9 @@ function AppContent() {
     showInstallDialog,
     handleInstallDialogClose,
   } = useOnboarding();
+  // Melden setzt eine Anmeldung voraus (der Wunsch wird auf die eigene
+  // user-id gebucht) — auf der Anmeldeseite darf der Knopf nicht erscheinen.
+  const [angemeldet, setAngemeldet] = useState(false);
 
   // Ensure user profile exists (for users created via Cloud dashboard)
   useEffect(() => {
@@ -72,6 +76,14 @@ function AppContent() {
       }
     };
     ensureProfile();
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setAngemeldet(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
+      setAngemeldet(!!session),
+    );
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   return (
@@ -111,6 +123,10 @@ function AppContent() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       </Suspense>
+
+      {/* Für Seiten ohne eigene Kopfzeile. Blendet sich selbst aus, sobald
+          auf der Seite ein [data-seitenkopf] steht. */}
+      {angemeldet && <AenderungswunschKnopf gestalt="schwebend" />}
 
       {/* Install Prompt Dialog */}
       <InstallPromptDialog
