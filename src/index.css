@@ -120,3 +120,39 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /*
+    Bildschirmfüllende Formulare (siehe FormularDialog).
+
+    Auf der Baustelle wird mit einer Hand am Handy oder am Tablet getippt —
+    ein Regiebericht in einem Kästchen mitten am Schirm ist dafür zu klein.
+    Es gibt bewusst KEINE Ausnahme für den Rechner: Eine Regel nach
+    Bildschirmbreite lässt sonst ausgerechnet das Tablet im Kästchen zurück.
+
+    Der Selektor nennt zusätzlich [role="dialog"], weil Tailwinds
+    Hilfsklassen (max-w-lg, p-6, …) sonst gewinnen — sie stehen in einer
+    späteren Schicht. Mit zwei Selektorteilen sticht die Regel sie aus.
+
+    dvh statt vh: Am Handy blendet die Adresszeile beim Scrollen ein und aus;
+    vh rechnet mit der größten Höhe und schneidet den unteren Rand ab.
+  */
+  [role="dialog"].formular-vollbild {
+    position: fixed;
+    inset: 0;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    width: 100vw;
+    max-width: 100vw;
+    transform: none;
+    gap: 0;
+    overflow: hidden;
+    border-radius: 0;
+    border-width: 0;
+    padding: 0;
+  }
+}

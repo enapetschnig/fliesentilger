@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Clock, User, Mail, Phone, MapPin, FileText, Package, Plus, Trash2, Search } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { FormularDialog } from "@/components/FormularDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -57,6 +57,11 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
   const einheiten = useEinheiten();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  /* Der Speichern-Knopf steht im festen Fuß, also außerhalb des <form>.
+     Über den Ref löst er gezielt DIESES Formular aus — das frühere
+     document.querySelector('form') hätte das erstbeste auf der Seite
+     erwischt. */
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [formData, setFormData] = useState({
     datum: format(new Date(), "yyyy-MM-dd"),
@@ -403,20 +408,24 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            {editData ? "Regiebericht bearbeiten" : "Neuen Regiebericht erfassen"}
-          </DialogTitle>
-          <DialogDescription>
-            Erfassen Sie einen Service-Einsatz beim Kunden.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto pr-1">
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <FormularDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      titel={editData ? "Regiebericht bearbeiten" : "Neuen Regiebericht erfassen"}
+      beschreibung="Erfassen Sie einen Service-Einsatz beim Kunden."
+      gesperrt={saving}
+      fuss={
+        <>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Abbrechen
+          </Button>
+          <Button type="button" onClick={() => formRef.current?.requestSubmit()} disabled={saving}>
+            {saving ? "Speichern..." : editData ? "Aktualisieren" : "Regiebericht erfassen"}
+          </Button>
+        </>
+      }
+    >
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
           {/* Date and Time Section */}
           <div className="space-y-4">
             <h3 className="font-medium flex items-center gap-2">
@@ -691,22 +700,6 @@ export const DisturbanceForm = ({ open, onOpenChange, onSuccess, editData }: Dis
             )}
           </div>
         </form>
-        </div>
-
-        {/* Sticky Actions */}
-        <div className="flex gap-3 justify-end pt-4 border-t bg-background flex-shrink-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
-          </Button>
-          <Button onClick={(e) => { 
-            e.preventDefault();
-            const form = document.querySelector('form');
-            if (form) form.requestSubmit();
-          }} disabled={saving}>
-            {saving ? "Speichern..." : editData ? "Aktualisieren" : "Regiebericht erfassen"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    </FormularDialog>
   );
 };
