@@ -172,6 +172,13 @@ export default function Invoices() {
       return;
     }
 
+    // Ein Entwurf hat keine Nummer — eine Zahlung darauf ergibt eine
+    // "bezahlte" Rechnung, die es nie gab. Erst erstellen, dann Zahlung.
+    if (inv.status === "entwurf" && (newStatus === "teilbezahlt" || newStatus === "bezahlt")) {
+      toast({ variant: "destructive", title: "Nicht möglich", description: "Entwurf zuerst als Rechnung erstellen, dann Zahlung erfassen" });
+      return;
+    }
+
     // For teilbezahlt/bezahlt: open payment dialog first
     if (newStatus === "teilbezahlt" || newStatus === "bezahlt") {
       setPaymentInvoiceId(invoiceId);

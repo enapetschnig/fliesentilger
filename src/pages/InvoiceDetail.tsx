@@ -352,6 +352,14 @@ export default function InvoiceDetail() {
       return;
     }
 
+    // Selbstheilung: Eine Rechnung ohne Nummer ist ein Entwurf, egal was im
+    // Status steht. Sonst ist sie gesperrt (nicht Entwurf), aber ohne Nummer
+    // nie abgeschlossen — und lässt sich weder bearbeiten noch erstellen.
+    if (data.typ === "rechnung" && !data.nummer && ["offen", "teilbezahlt", "bezahlt"].includes(data.status)) {
+      await supabase.from("invoices").update({ status: "entwurf" }).eq("id", invoiceId);
+      data.status = "entwurf";
+    }
+
     // Bei Rechnungs-Entwürfen: Datum + Fälligkeit auf heute setzen (UI-Default,
     // wird erst beim Speichern in die DB übernommen — User kann manuell ändern)
     const isDraftRechnung = data.status === "entwurf" && data.typ === "rechnung";
@@ -867,8 +875,10 @@ export default function InvoiceDetail() {
 
     await supabase.from("invoice_payments").delete().eq("id", paymentId);
     const newTotal = Math.round(Math.max(0, form.bezahlt_betrag - Number(payment.betrag)) * 100) / 100;
-    // Don't overwrite storniert status
-    const newStatus = form.status === "storniert" ? "storniert" : newTotal <= 0 ? "offen" : newTotal >= Math.round(bruttoSumme * 100) / 100 ? "bezahlt" : "teilbezahlt";
+    // Don't overwrite storniert status. Ohne Nummer war es nie eine fertige
+    // Rechnung — dann zurück auf Entwurf, nicht auf "offen".
+    const zurueck = form.nummer ? "offen" : "entwurf";
+    const newStatus = form.status === "storniert" ? "storniert" : newTotal <= 0 ? zurueck : newTotal >= Math.round(bruttoSumme * 100) / 100 ? "bezahlt" : "teilbezahlt";
     await supabase.from("invoices").update({ bezahlt_betrag: newTotal, status: newStatus }).eq("id", invoiceId);
     updateField("bezahlt_betrag", newTotal);
     updateField("status", newStatus);
@@ -1423,8 +1433,11 @@ export default function InvoiceDetail() {
             </Card>
           )}
 
-          {/* Zahlungsverlauf */}
-          {!isNew && form.typ === "rechnung" && form.status !== "storniert" && (
+          {/* Zahlungsverlauf — nicht auf Entwürfen: Eine Zahlung setzt den Status
+              auf bezahlt/teilbezahlt, ohne dass je eine Nummer vergeben wurde.
+              Beim Löschen der letzten Zahlung wurde daraus "offen" ohne Nummer —
+              gesperrt, aber nicht abgeschlossen (Stadlober, 16.09.2026). */}
+          {!isNew && form.typ === "rechnung" && form.status !== "storniert" && form.status !== "entwurf" && (
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
